@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import './theme.css';
+
+:root {
+  --foreground-rgb: 244, 249, 246;
+  --background-start-rgb: 7, 25, 20;
+  --background-end-rgb: 12, 37, 30;
+}
+
+body {
+  color: var(--admin-ivory);
+  background: var(--admin-bg-base);
+  font-family: var(--admin-desc-font);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Headings apply Poppins */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--admin-title-font);
+}
+
+/* Paragraphs, descriptions and controls apply Raleway */
+p, span, label, input, textarea, select, table, th, td {
+  font-family: var(--admin-desc-font);
+}
+
+/* Devotional Scrollbar styled to theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--admin-maroon-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--admin-maroon-mid);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--admin-gold);
+}
