@@ -656,6 +656,20 @@ export const DharmaKarthaManager: React.FC<DharmaKarthaManagerProps> = ({
               </span>
             </div>
 
+            {/* Temple Hero Image Banner */}
+            {detailTemple.heroImageUrl && (
+              <div className="w-full h-48 rounded-xl overflow-hidden border border-[#3C3C3C] bg-[#181818] relative">
+                <img
+                  src={detailTemple.heroImageUrl}
+                  alt={detailTemple.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+
             {/* Information Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="bg-[#181818] p-3 rounded-xl border border-[#282828] space-y-1">
