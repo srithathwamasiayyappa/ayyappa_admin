@@ -14,6 +14,7 @@ dist/
 next-env.d.ts
 
 # Production / Secrets
+.env
 .env*.local
 
 # Debug and Logs
