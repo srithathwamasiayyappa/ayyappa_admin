@@ -41,6 +41,9 @@ import {
 } from 'lucide-react';
 import { SplashScreenManager } from './components/SplashScreenManager';
 import { DeityManager } from './components/DeityManager';
+import { DharmaKarthaManager } from './components/DharmaKarthaManager';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backendapis.saranamayyappa.in/api/v1';
+
 
 interface CategoryItem {
   id: string;
@@ -282,7 +285,7 @@ export default function EnterpriseSuperAdminDashboard() {
     if (!selectedCmsKey) return;
     setIsSavingCms(true);
     try {
-      const res = await fetch('http://localhost:4000/api/v1/admin/cms', {
+      const res = await fetch(`${API_BASE_URL}/admin/cms`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -336,7 +339,7 @@ export default function EnterpriseSuperAdminDashboard() {
     e.preventDefault();
     setAuthError(null);
     try {
-      const res = await fetch('http://localhost:4000/api/v1/admin/auth/login', {
+      const res = await fetch(`${API_BASE_URL}/admin/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail, password: loginPassword })
@@ -363,7 +366,7 @@ export default function EnterpriseSuperAdminDashboard() {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('ayyappa_admin_token') : null;
       if (token) {
-        await fetch('http://localhost:4000/api/v1/admin/auth/logout', {
+        await fetch(`${API_BASE_URL}/admin/auth/logout`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ token })
@@ -384,7 +387,7 @@ export default function EnterpriseSuperAdminDashboard() {
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:4000/api/v1/admin/profile', {
+      const res = await fetch(`${API_BASE_URL}/admin/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: adminProfile.id, fullName: editFullName })
@@ -408,7 +411,7 @@ export default function EnterpriseSuperAdminDashboard() {
       return;
     }
     try {
-      const res = await fetch('http://localhost:4000/api/v1/admin/profile/change-password', {
+      const res = await fetch(`${API_BASE_URL}/admin/profile/change-password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -434,7 +437,7 @@ export default function EnterpriseSuperAdminDashboard() {
   // 1. Load Categories
   const loadCategories = useCallback((pageNum = 1, search = '', lang = 'te', audio = '') => {
     setLoading(true);
-    const url = new URL('http://localhost:4000/api/v1/admin/categories');
+    const url = new URL(`${API_BASE_URL}/admin/categories`);
     url.searchParams.set('page', String(pageNum));
     url.searchParams.set('limit', '15');
     url.searchParams.set('lang', lang);
@@ -457,7 +460,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
   // 2. Load Subcategories
   const loadParentLookup = useCallback((lang = 'te') => {
-    fetch(`http://localhost:4000/api/v1/admin/categories/parents?lang=${lang}`)
+    fetch(`${API_BASE_URL}/admin/categories/parents?lang=${lang}`)
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setParentLookupList(data); })
       .catch(() => {});
@@ -465,7 +468,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
   const loadSubcategories = useCallback((pageNum = 1, search = '', lang = 'te') => {
     setLoading(true);
-    const url = new URL('http://localhost:4000/api/v1/admin/subcategories');
+    const url = new URL(`${API_BASE_URL}/admin/subcategories`);
     url.searchParams.set('page', String(pageNum));
     url.searchParams.set('limit', '25');
     url.searchParams.set('lang', lang);
@@ -483,7 +486,7 @@ export default function EnterpriseSuperAdminDashboard() {
   // 3. Load Devotional Content
   const loadDevotionalContent = useCallback((pageNum = 1, search = '') => {
     setLoading(true);
-    const url = new URL('http://localhost:4000/api/v1/admin/content');
+    const url = new URL(`${API_BASE_URL}/admin/content`);
     url.searchParams.set('page', String(pageNum));
     url.searchParams.set('limit', '15');
     if (search) url.searchParams.set('search', search);
@@ -499,7 +502,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
   // 4. Load Festivals & Live Panchangam
   const loadPanchangam = useCallback((city = 'Hyderabad', lang = 'te') => {
-    fetch(`http://localhost:4000/api/v1/panchangam/day?city=${city}&lang=${lang}`)
+    fetch(`${API_BASE_URL}/panchangam/day?city=${city}&lang=${lang}`)
       .then(res => res.json())
       .then(data => setLivePanchangam(data))
       .catch(() => {});
@@ -507,7 +510,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
   const loadFestivals = useCallback((pageNum = 1, search = '') => {
     setLoading(true);
-    const url = new URL('http://localhost:4000/api/v1/admin/panchangam/festivals');
+    const url = new URL(`${API_BASE_URL}/admin/panchangam/festivals`);
     url.searchParams.set('page', String(pageNum));
     url.searchParams.set('limit', '15');
     if (search) url.searchParams.set('search', search);
@@ -523,7 +526,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
   // 5. Load Audio
   const loadAudio = useCallback(() => {
-    fetch('http://localhost:4000/api/v1/admin/media/audio')
+    fetch(`${API_BASE_URL}/admin/media/audio`)
       .then(res => res.json())
       .then(res => { if (res.data) setAudioList(res.data); })
       .catch(() => {});
@@ -531,42 +534,42 @@ export default function EnterpriseSuperAdminDashboard() {
 
   // 6. Load CMS
   const loadCms = useCallback(() => {
-    fetch('http://localhost:4000/api/v1/admin/cms')
+    fetch(`${API_BASE_URL}/admin/cms`)
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setCmsPages(data); })
       .catch(() => {});
   }, []);
 
   const loadStats = useCallback(() => {
-    fetch('http://localhost:4000/api/v1/admin/dashboard/stats')
+    fetch(`${API_BASE_URL}/admin/dashboard/stats`)
       .then(res => res.json())
       .then(data => setStats(data))
       .catch(() => {});
   }, []);
 
   const loadLanguages = useCallback(() => {
-    fetch('http://localhost:4000/api/v1/admin/languages')
+    fetch(`${API_BASE_URL}/admin/languages`)
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setLanguages(data); })
       .catch(() => {});
   }, []);
 
   const loadUsers = useCallback(() => {
-    fetch('http://localhost:4000/api/v1/admin/users?status=all')
+    fetch(`${API_BASE_URL}/admin/users?status=all`)
       .then(res => res.json())
       .then(res => { if (res.data) setUsers(res.data); })
       .catch(() => {});
   }, []);
 
   const loadDeletionRequests = useCallback(() => {
-    fetch('http://localhost:4000/api/v1/admin/users/deletion-requests')
+    fetch(`${API_BASE_URL}/admin/users/deletion-requests`)
       .then(res => res.json())
       .then(res => { if (res.data) setDeletionRequests(res.data); })
       .catch(() => {});
   }, []);
 
   const loadSoftDeletedUsers = useCallback(() => {
-    fetch('http://localhost:4000/api/v1/admin/users/soft-deleted')
+    fetch(`${API_BASE_URL}/admin/users/soft-deleted`)
       .then(res => res.json())
       .then(res => { if (res.data) setSoftDeletedUsers(res.data); })
       .catch(() => {});
@@ -578,7 +581,7 @@ export default function EnterpriseSuperAdminDashboard() {
     }
     setActionLoadingId(userId);
     try {
-      const res = await fetch(`http://localhost:4000/api/v1/admin/users/${userId}/soft-delete`, { method: 'POST' });
+      const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/soft-delete`, { method: 'POST' });
       const json = await res.json();
       if (res.ok) {
         setNotification(json.message || 'User soft-deleted successfully.');
@@ -602,7 +605,7 @@ export default function EnterpriseSuperAdminDashboard() {
     }
     setActionLoadingId(userId);
     try {
-      const res = await fetch(`http://localhost:4000/api/v1/admin/users/${userId}/restore`, { method: 'POST' });
+      const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/restore`, { method: 'POST' });
       const json = await res.json();
       if (res.ok) {
         setNotification(json.message || 'User restored successfully.');
@@ -626,7 +629,7 @@ export default function EnterpriseSuperAdminDashboard() {
     }
     setActionLoadingId(userId);
     try {
-      const res = await fetch(`http://localhost:4000/api/v1/admin/users/${userId}/permanent-delete`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/permanent-delete`, { method: 'DELETE' });
       const json = await res.json();
       if (res.ok) {
         setNotification(json.message || 'User permanently purged from database.');
@@ -645,14 +648,14 @@ export default function EnterpriseSuperAdminDashboard() {
   };
 
   const loadAuditLogs = useCallback(() => {
-    fetch('http://localhost:4000/api/v1/admin/audit-logs')
+    fetch(`${API_BASE_URL}/admin/audit-logs`)
       .then(res => res.json())
       .then(res => { if (res.data) setAuditLogs(res.data); })
       .catch(() => {});
   }, []);
 
   const loadTicker = useCallback(() => {
-    fetch('http://localhost:4000/api/v1/admin/settings/ticker')
+    fetch(`${API_BASE_URL}/admin/settings/ticker`)
       .then(res => res.json())
       .then(data => { if (data.ticker) setTickerText(data.ticker); })
       .catch(() => {});
@@ -719,7 +722,7 @@ export default function EnterpriseSuperAdminDashboard() {
   const handleOpenViewCategory = async (id: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/v1/categories/${id}?lang=${selectedLang}`);
+      const res = await fetch(`${API_BASE_URL}/categories/${id}?lang=${selectedLang}`);
       const data = await res.json();
       setViewDetail(data);
       setPageMode('VIEW_CATEGORY');
@@ -746,14 +749,14 @@ export default function EnterpriseSuperAdminDashboard() {
 
     try {
       if (editingId) {
-        await fetch(`http://localhost:4000/api/v1/admin/categories/${editingId}`, {
+        await fetch(`${API_BASE_URL}/admin/categories/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
         setNotification(`Updated "${formTitle}" in MySQL!`);
       } else {
-        await fetch('http://localhost:4000/api/v1/admin/categories', {
+        await fetch(`${API_BASE_URL}/admin/categories`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -773,7 +776,7 @@ export default function EnterpriseSuperAdminDashboard() {
   const handleDeleteCategory = async (id: string, title: string) => {
     if (confirm(`Archive / Delete "${title}" (#${id})?\n\nThis will safely deactivate the category in MySQL without destroying sacred verses or offline audio.`)) {
       try {
-        const res = await fetch(`http://localhost:4000/api/v1/admin/categories/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${API_BASE_URL}/admin/categories/${id}`, { method: 'DELETE' });
         const json = await res.json();
         if (!res.ok) {
           alert(`PROTECTED ACTION BLOCKED:\n\n${json.message}`);
@@ -829,14 +832,14 @@ export default function EnterpriseSuperAdminDashboard() {
 
     try {
       if (editingSubId) {
-        await fetch(`http://localhost:4000/api/v1/admin/categories/${editingSubId}`, {
+        await fetch(`${API_BASE_URL}/admin/categories/${editingSubId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
         setNotification(`Updated subcategory "${subFormTitle}" in MySQL!`);
       } else {
-        await fetch('http://localhost:4000/api/v1/admin/categories', {
+        await fetch(`${API_BASE_URL}/admin/categories`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -856,7 +859,7 @@ export default function EnterpriseSuperAdminDashboard() {
   const handleDeleteSubcategory = async (id: string, title: string) => {
     if (confirm(`Archive subcategory "${title}" (#${id})?`)) {
       try {
-        const res = await fetch(`http://localhost:4000/api/v1/admin/categories/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${API_BASE_URL}/admin/categories/${id}`, { method: 'DELETE' });
         const json = await res.json();
         if (!res.ok) {
           alert(`ACTION BLOCKED: ${json.message}`);
@@ -894,14 +897,14 @@ export default function EnterpriseSuperAdminDashboard() {
 
     try {
       if (editingLangId) {
-        await fetch(`http://localhost:4000/api/v1/admin/languages/${editingLangId}`, {
+        await fetch(`${API_BASE_URL}/admin/languages/${editingLangId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: langName.trim() })
         });
         setNotification(`Updated language "${langName}" in MySQL!`);
       } else {
-        const res = await fetch('http://localhost:4000/api/v1/admin/languages', {
+        const res = await fetch(`${API_BASE_URL}/admin/languages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: langCode.toLowerCase().trim(), name: langName.trim() })
@@ -924,7 +927,7 @@ export default function EnterpriseSuperAdminDashboard() {
   const handleDeleteLanguage = async (id: number, name: string) => {
     if (confirm(`Delete language "${name}" (#${id}) from database?`)) {
       try {
-        const res = await fetch(`http://localhost:4000/api/v1/admin/languages/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${API_BASE_URL}/admin/languages/${id}`, { method: 'DELETE' });
         const json = await res.json();
         if (!res.ok) {
           alert(`PROTECTED ACTION BLOCKED:\n\n${json.message}`);
@@ -954,7 +957,7 @@ export default function EnterpriseSuperAdminDashboard() {
       return;
     }
     try {
-      await fetch('http://localhost:4000/api/v1/admin/content', {
+      await fetch(`${API_BASE_URL}/admin/content`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -975,7 +978,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
   const handleDeleteContent = async (id: number, title: string) => {
     if (confirm(`Delete "${title}" (#${id})?`)) {
-      await fetch(`http://localhost:4000/api/v1/admin/content/${id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE_URL}/admin/content/${id}`, { method: 'DELETE' });
       setNotification(`Removed "${title}"`);
       loadDevotionalContent();
     }
@@ -995,7 +998,7 @@ export default function EnterpriseSuperAdminDashboard() {
       return;
     }
     try {
-      await fetch('http://localhost:4000/api/v1/admin/panchangam/festivals', {
+      await fetch(`${API_BASE_URL}/admin/panchangam/festivals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1016,7 +1019,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
   const handleDeleteFestival = async (id: number) => {
     if (confirm(`Delete festival #${id}?`)) {
-      await fetch(`http://localhost:4000/api/v1/admin/panchangam/festivals/${id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE_URL}/admin/panchangam/festivals/${id}`, { method: 'DELETE' });
       setNotification('Festival deleted');
       loadFestivals();
     }
@@ -1025,7 +1028,7 @@ export default function EnterpriseSuperAdminDashboard() {
   // TICKER ACTION
   const handleSaveTicker = async () => {
     try {
-      await fetch('http://localhost:4000/api/v1/admin/settings/ticker', {
+      await fetch(`${API_BASE_URL}/admin/settings/ticker`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker: tickerText })
@@ -2461,8 +2464,13 @@ export default function EnterpriseSuperAdminDashboard() {
                 </div>
               )}
 
-              {/* View 2: All Active Registered Users */}
-              {userSubTab === 'all' && (
+              {/* View 2: Dharma Karthas Temple Verification Screen */}
+              {userSubTab === 'all' && selectedUserSubtitle === 'dharma_karthas' && (
+                <DharmaKarthaManager apiBaseUrl={API_BASE_URL} onNotification={setNotification} />
+              )}
+
+              {/* View 3: All Active Registered Devotees */}
+              {userSubTab === 'all' && selectedUserSubtitle === 'devotees' && (
                 <div className="bg-[#1E1E1E] rounded-xl border border-[#2C2C2C] overflow-hidden">
                   <div className="p-5 border-b border-[#2C2C2C] flex items-center justify-between">
                     <div>
