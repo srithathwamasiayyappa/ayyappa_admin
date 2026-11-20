@@ -161,8 +161,9 @@ interface DevotionalContentItem {
   slug: string;
   sacredText?: string;
   meaning?: string;
-  isPublished: boolean;
+  isPublished?: boolean;
   categoryId: number;
+  category?: any;
 }
 
 interface FestivalItem {
@@ -762,6 +763,7 @@ export default function EnterpriseSuperAdminDashboard() {
   const [contentCategoryId, setContentCategoryId] = useState('1');
   const [contentSacredText, setContentSacredText] = useState('');
   const [contentMeaning, setContentMeaning] = useState('');
+  const [contentIsPublished, setContentIsPublished] = useState(true);
 
   // Festival Modal & Detail State (Create, Edit, Delete, View All, View By ID)
   const [isFestivalModalOpen, setIsFestivalModalOpen] = useState(false);
@@ -1304,6 +1306,30 @@ export default function EnterpriseSuperAdminDashboard() {
       }
     } catch {
       alert('Error executing restore');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleDismissDeletionRequest = async (userId: number, userName?: string) => {
+    if (!window.confirm(`Are you sure you want to DISMISS account deletion request for devotee #${userId} (${userName || 'User'})? The account will remain active in good standing.`)) {
+      return;
+    }
+    setActionLoadingId(userId);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/dismiss-deletion-request`, { method: 'POST' });
+      const json = await res.json();
+      if (res.ok) {
+        setNotification(json.message || 'Deletion request dismissed successfully.');
+        setTimeout(() => setNotification(null), 4000);
+        loadUsers();
+        loadDeletionRequests();
+        loadSoftDeletedUsers();
+      } else {
+        alert(json.message || 'Failed to dismiss deletion request');
+      }
+    } catch {
+      alert('Error dismissing deletion request');
     } finally {
       setActionLoadingId(null);
     }
@@ -2383,6 +2409,7 @@ export default function EnterpriseSuperAdminDashboard() {
     setContentSlug('');
     setContentSacredText('');
     setContentMeaning('');
+    setContentIsPublished(true);
     setIsContentModalOpen(true);
   };
 
@@ -2393,6 +2420,7 @@ export default function EnterpriseSuperAdminDashboard() {
     setContentCategoryId(String(item.categoryId || 1));
     setContentSacredText(item.sacredText || '');
     setContentMeaning(item.meaning || '');
+    setContentIsPublished(item.isPublished ?? true);
     setIsContentModalOpen(true);
   };
 
@@ -2407,9 +2435,11 @@ export default function EnterpriseSuperAdminDashboard() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            categoryId: Number(contentCategoryId),
             title: contentTitle.trim(),
             sacredText: contentSacredText,
-            meaning: contentMeaning
+            meaning: contentMeaning,
+            isPublished: contentIsPublished
           })
         });
         setNotification(`Content "${contentTitle}" updated successfully.`);
@@ -2422,7 +2452,8 @@ export default function EnterpriseSuperAdminDashboard() {
             title: contentTitle.trim(),
             slug: contentSlug.trim() || `verse-${Date.now()}`,
             sacredText: contentSacredText,
-            meaning: contentMeaning
+            meaning: contentMeaning,
+            isPublished: contentIsPublished
           })
         });
         setNotification(`Content "${contentTitle}" created successfully.`);
@@ -4698,7 +4729,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
                                 <td className="px-5 py-3">
                                   <p className="font-bold text-gray-100 flex items-center gap-1.5">
-                                    <span>{sub.title}</span>
+                                    <span>{sub.title && sub.title !== sub.slug ? sub.title : sub.slug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span>
                                   </p>
                                   <p className="font-mono text-[11px] text-amber-400/90 mt-0.5">/{sub.slug}</p>
                                   {sub.description && (
@@ -4805,7 +4836,9 @@ export default function EnterpriseSuperAdminDashboard() {
                     <thead className="bg-[#181818] uppercase text-gray-400 border-b border-[#2C2C2C]">
                       <tr>
                         <th className="px-6 py-3">ID</th>
-                        <th className="px-6 py-3">Title</th>
+                        <th className="px-6 py-3">Title & Slug</th>
+                        <th className="px-6 py-3">Category</th>
+                        <th className="px-6 py-3">Status</th>
                         <th className="px-6 py-3">Sacred Verse</th>
                         <th className="px-6 py-3">Spiritual Meaning</th>
                         <th className="px-6 py-3 text-right">Actions</th>
@@ -4814,8 +4847,19 @@ export default function EnterpriseSuperAdminDashboard() {
                     <tbody className="divide-y divide-[#2C2C2C]">
                       {devotionalContent.map(item => (
                         <tr key={item.id} className="hover:bg-neutral-800/40">
-                          <td className="px-6 py-4 font-mono">#{item.id}</td>
-                          <td className="px-6 py-4 font-semibold text-gray-100">{item.title}</td>
+                          <td className="px-6 py-4 font-mono text-gray-400">#{item.id}</td>
+                          <td className="px-6 py-4">
+                            <div className="font-semibold text-gray-100">{item.title}</div>
+                            <div className="font-mono text-[11px] text-gray-500">{item.slug}</div>
+                          </td>
+                          <td className="px-6 py-4 text-gray-300">
+                            {item.category?.slug || `Cat #${item.categoryId}`}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${item.isPublished !== false ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-800/50' : 'bg-amber-950/70 text-amber-300 border border-amber-800/50'}`}>
+                              {item.isPublished !== false ? 'Published' : 'Draft'}
+                            </span>
+                          </td>
                           <td className="px-6 py-4 font-mono text-amber-300 max-w-xs truncate">{item.sacredText || '—'}</td>
                           <td className="px-6 py-4 text-gray-400 max-w-xs truncate">{item.meaning || '—'}</td>
                           <td className="px-6 py-4 text-right flex items-center justify-end gap-1.5">
@@ -5752,21 +5796,29 @@ export default function EnterpriseSuperAdminDashboard() {
                                 </span>
                               </td>
                               <td className="px-6 py-4">
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse">
-                                  DELETION REQUESTED
-                                </span>
+                                {u.isDeleted ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                    SOFT DELETED
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse">
+                                    PENDING ACTION
+                                  </span>
+                                )}
                               </td>
                               <td className="px-6 py-4 text-right">
                                 <div className="flex items-center justify-end gap-2">
-                                  <button
-                                    onClick={() => handleSoftDeleteUser(u.id, u.fullName || u.phoneNumber)}
-                                    disabled={actionLoadingId === u.id}
-                                    className="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-600/30 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
-                                    title="Deactivate account & move to Soft-Deleted archive"
-                                  >
-                                    <Archive className="w-3.5 h-3.5" />
-                                    <span>Soft Delete</span>
-                                  </button>
+                                  {!u.isDeleted && (
+                                    <button
+                                      onClick={() => handleSoftDeleteUser(u.id, u.fullName || u.phoneNumber)}
+                                      disabled={actionLoadingId === u.id}
+                                      className="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-600/30 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
+                                      title="Deactivate account & move to Soft-Deleted archive"
+                                    >
+                                      <Archive className="w-3.5 h-3.5" />
+                                      <span>Soft Delete</span>
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => handlePermanentDeleteUser(u.id, u.fullName || u.phoneNumber)}
                                     disabled={actionLoadingId === u.id}
@@ -5775,6 +5827,15 @@ export default function EnterpriseSuperAdminDashboard() {
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                     <span>Permanent Delete</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDismissDeletionRequest(u.id, u.fullName || u.phoneNumber)}
+                                    disabled={actionLoadingId === u.id}
+                                    className="px-3 py-1.5 bg-neutral-700/40 hover:bg-neutral-700/60 text-gray-300 border border-neutral-600/40 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
+                                    title="Dismiss deletion request and keep account active"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Dismiss</span>
                                   </button>
                                 </div>
                               </td>
@@ -8661,6 +8722,32 @@ export default function EnterpriseSuperAdminDashboard() {
                   minHeight="180px"
                   hideTemplateBtn={true}
                 />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-gray-300 uppercase mb-1">Publication Status</label>
+                <div className="flex items-center gap-4 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="contentStatus" 
+                      checked={contentIsPublished} 
+                      onChange={() => setContentIsPublished(true)}
+                      className="text-amber-500 focus:ring-amber-400"
+                    />
+                    <span className="text-emerald-400 font-semibold">Published (Live on Website & App)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="contentStatus" 
+                      checked={!contentIsPublished} 
+                      onChange={() => setContentIsPublished(false)}
+                      className="text-amber-500 focus:ring-amber-400"
+                    />
+                    <span className="text-amber-400 font-semibold">Draft / In Review (Hidden from public)</span>
+                  </label>
+                </div>
               </div>
             </div>
 
