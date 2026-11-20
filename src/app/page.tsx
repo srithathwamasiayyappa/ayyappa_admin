@@ -118,8 +118,8 @@ interface SubcategoryItem {
   id: string;
   title: string;
   slug: string;
-  parentTitle: string;
-  parentId: number;
+  parentTitle?: string;
+  parentId?: number;
   parentSlug?: string;
   parentKey?: string;
   description: string;
@@ -143,8 +143,16 @@ interface FullCategoryDetail {
   description: string | null;
   isAudio: boolean;
   displayOrder: number;
+  isSubcategory?: boolean;
+  parentId?: number | string | null;
+  parentSlug?: string | null;
+  parentTitle?: string | null;
+  imageUrl?: string | null;
+  translations?: Array<{ code: string; name: string; title: string; description: string | null }>;
   subcategories: Array<{ id: string; title: string; slug: string; description: string | null }>;
   contents: Array<{ id: number; title: string; sacredText: string | null; meaning: string | null }>;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface DevotionalContentItem {
@@ -1781,6 +1789,33 @@ export default function EnterpriseSuperAdminDashboard() {
       }
     } catch {
       alert('Error loading category view details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenViewSubcategory = async (id: string) => {
+    setLoading(true);
+    try {
+      // 1. First fetch dynamically from DB via subcategories detail API
+      const res = await fetch(`${API_BASE_URL}/admin/subcategories/${id}?lang=${selectedLang}`);
+      const json = await res.json();
+      if (json && json.data) {
+        setViewDetail(json.data);
+        setIsViewModalOpen(true);
+        setPageMode('VIEW_CATEGORY');
+        return;
+      }
+      // 2. Secondary fallback
+      const resCat = await fetch(`${API_BASE_URL}/categories/${id}?lang=${selectedLang}`);
+      const dataCat = await resCat.json();
+      if (dataCat) {
+        setViewDetail(dataCat);
+        setIsViewModalOpen(true);
+        setPageMode('VIEW_CATEGORY');
+      }
+    } catch {
+      alert('Error loading subcategory view details');
     } finally {
       setLoading(false);
     }
@@ -4709,7 +4744,7 @@ export default function EnterpriseSuperAdminDashboard() {
                                       />
                                     </label>
                                     <button 
-                                      onClick={() => handleOpenViewCategory(sub.id)}
+                                      onClick={() => handleOpenViewSubcategory(sub.id)}
                                       className="p-1.5 bg-[#252525] hover:bg-[#303030] border border-[#3A3A3A] rounded text-sky-400 transition"
                                       title="View Subcategory Details"
                                     >
@@ -8006,7 +8041,7 @@ export default function EnterpriseSuperAdminDashboard() {
         </div>
       </main>
 
-      {/* Modal Dialog for View Record by Template */}
+      {/* Modal Dialog for View Record by Template / Subcategory Details */}
       {isViewModalOpen && viewDetail && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#1C1C1C] border border-[#FFB300]/50 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
@@ -8017,8 +8052,14 @@ export default function EnterpriseSuperAdminDashboard() {
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-[#FFB300]">View Record by Template</h3>
-                  <p className="text-xs text-gray-400">Category Master Record — ID #{viewDetail.id}</p>
+                  <h3 className="text-base font-bold text-[#FFB300]">
+                    {viewDetail.isSubcategory || viewDetail.parentId ? 'View Subcategory Details' : 'View Category Record'}
+                  </h3>
+                  <p className="text-xs text-gray-400">
+                    {viewDetail.isSubcategory || viewDetail.parentId 
+                      ? `Devotional Subcategory DB Record — ID #${viewDetail.id}`
+                      : `Category Master Record — ID #${viewDetail.id}`}
+                  </p>
                 </div>
               </div>
               <button
@@ -8037,64 +8078,130 @@ export default function EnterpriseSuperAdminDashboard() {
                   ID: #{viewDetail.id}
                 </span>
                 <span className="px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 font-mono text-amber-300">
-                  slug: {viewDetail.slug}
+                  slug: /{viewDetail.slug}
                 </span>
+                {(viewDetail.isSubcategory || viewDetail.parentId) && (
+                  <span className="px-2.5 py-1 rounded bg-orange-950/60 border border-orange-700/50 text-orange-300 font-semibold flex items-center gap-1">
+                    <span>📁 Parent:</span>
+                    <span>{viewDetail.parentTitle || viewDetail.parentSlug || 'Pooja Vidhanam'}</span>
+                  </span>
+                )}
                 <span className={`px-2.5 py-1 rounded border font-medium ${viewDetail.isAudio ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-blue-500/10 border-blue-500/30 text-blue-400'}`}>
-                  {viewDetail.isAudio ? '🎵 Audio Track' : '📜 Slokas & Mantras'}
+                  {viewDetail.isAudio ? '🎵 Audio Track' : '📜 Vidhanam & Stotra'}
                 </span>
                 <span className="px-2.5 py-1 rounded bg-[#252525] border border-[#3A3A3A] text-gray-400">
                   Language: {selectedLang.toUpperCase()}
                 </span>
               </div>
 
+              {/* Subcategory Artwork Preview if available */}
+              {viewDetail.imageUrl && (
+                <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-lg overflow-hidden border border-amber-500/30 flex-shrink-0 bg-neutral-900 flex items-center justify-center">
+                    <img
+                      src={viewDetail.imageUrl.startsWith('http') || viewDetail.imageUrl.startsWith('data:') 
+                        ? viewDetail.imageUrl 
+                        : `${API_ORIGIN}${viewDetail.imageUrl.startsWith('/') ? '' : '/'}${viewDetail.imageUrl}`}
+                      alt={viewDetail.title}
+                      className="w-full h-full object-cover"
+                      onError={(e: any) => {
+                        e.currentTarget.style.display = 'none';
+                        if (e.currentTarget.parentElement) {
+                          e.currentTarget.parentElement.innerHTML = '<span class="text-2xl">🪔</span>';
+                        }
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Subcategory Artwork</span>
+                    <h5 className="font-semibold text-gray-200 mt-0.5">{viewDetail.title}</h5>
+                    <p className="text-[11px] text-gray-400 mt-0.5 break-all font-mono">{viewDetail.imageUrl}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Title */}
               <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Category Title</span>
+                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                  {viewDetail.isSubcategory || viewDetail.parentId ? 'Subcategory Title' : 'Category Title'}
+                </span>
                 <h4 className="text-base font-bold text-gray-100 flex items-center gap-2">
                   <span className="text-orange-400">🪔</span>
                   <span>{viewDetail.title}</span>
                 </h4>
               </div>
 
-              {/* Description / Template Body */}
+              {/* Multi-Language Translations (Database Records) */}
+              {viewDetail.translations && viewDetail.translations.length > 0 && (
+                <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-2">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                    Database Multi-Language Translations ({viewDetail.translations.length})
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                    {viewDetail.translations.map((tr) => (
+                      <div key={tr.code} className="p-2.5 rounded-lg bg-[#1C1C1C] border border-[#2C2C2C] space-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-amber-300 uppercase text-[10px]">{tr.name || tr.code}</span>
+                          <span className="font-mono text-gray-500 text-[9px]">{tr.code}</span>
+                        </div>
+                        <div className="font-semibold text-gray-100 text-xs">{tr.title}</div>
+                        {tr.description && (
+                          <div className="text-gray-400 text-[11px] line-clamp-2">{tr.description}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Description / Vidhanam Procedure */}
               <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-2">
-                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Sacred Description / Template Content</span>
+                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                  {viewDetail.isSubcategory || viewDetail.parentId ? 'Vidhanam Summary & Procedure' : 'Sacred Description / Template Content'}
+                </span>
                 {viewDetail.description ? (
                   <div 
-                    className="text-gray-200 leading-relaxed font-sans prose prose-invert max-w-none text-xs"
+                    className="text-gray-200 leading-relaxed font-sans prose prose-invert max-w-none text-xs whitespace-pre-wrap"
                     dangerouslySetInnerHTML={{ __html: viewDetail.description }}
                   />
                 ) : (
-                  <p className="text-gray-500 italic">No description or sacred summary provided for this category.</p>
+                  <p className="text-gray-500 italic">No description provided for this record.</p>
                 )}
               </div>
 
-              {/* Subcategories (Chapters) */}
-              <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                    Attached Subcategories & Chapters ({viewDetail.subcategories?.length || 0})
-                  </span>
-                </div>
-                {viewDetail.subcategories && viewDetail.subcategories.length > 0 ? (
+              {/* Subcategories (Chapters) if top category */}
+              {viewDetail.subcategories && viewDetail.subcategories.length > 0 && (
+                <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                      Attached Subcategories & Chapters ({viewDetail.subcategories.length})
+                    </span>
+                  </div>
                   <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                     {viewDetail.subcategories.map(sub => (
                       <div key={sub.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#1C1C1C] border border-[#2C2C2C]">
                         <span className="font-semibold text-gray-200">{sub.title}</span>
-                        <span className="font-mono text-gray-400 text-[10px]">/{sub.slug}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-gray-400 text-[10px]">/{sub.slug}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenViewSubcategory(sub.id)}
+                            className="px-2 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 border border-sky-500/30 transition"
+                          >
+                            View
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-gray-500 italic">No subcategories attached to this category.</p>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* Devotional Verses */}
+              {/* Devotional Verses & Mantras */}
               {viewDetail.contents && viewDetail.contents.length > 0 && (
                 <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-2">
                   <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                    Attached Devotional Verses ({viewDetail.contents.length})
+                    Attached Devotional Verses & Chants ({viewDetail.contents.length})
                   </span>
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                     {viewDetail.contents.map(v => (
@@ -8115,16 +8222,29 @@ export default function EnterpriseSuperAdminDashboard() {
                 type="button"
                 onClick={() => {
                   setIsViewModalOpen(false);
-                  const matchingCat = categories.find(c => String(c.id) === String(viewDetail.id));
-                  if (matchingCat) {
-                    handleOpenEditCategory(matchingCat);
+                  if (viewDetail.isSubcategory || viewDetail.parentId) {
+                    handleOpenEditSubcategory({
+                      id: String(viewDetail.id),
+                      title: viewDetail.title,
+                      slug: viewDetail.slug,
+                      parentId: Number(viewDetail.parentId) || 1,
+                      description: viewDetail.description || '',
+                      displayOrder: viewDetail.displayOrder || 1,
+                      imageUrl: viewDetail.imageUrl || '',
+                      parentTitle: viewDetail.parentTitle || 'Pooja Vidhanam',
+                    });
                   } else {
-                    setEditingId(viewDetail.id);
-                    setFormTitle(viewDetail.title);
-                    setFormSlug(viewDetail.slug);
-                    setFormIsAudio(viewDetail.isAudio);
-                    setFormDescription(viewDetail.description || '');
-                    setIsModalOpen(true);
+                    const matchingCat = categories.find(c => String(c.id) === String(viewDetail.id));
+                    if (matchingCat) {
+                      handleOpenEditCategory(matchingCat);
+                    } else {
+                      setEditingId(viewDetail.id);
+                      setFormTitle(viewDetail.title);
+                      setFormSlug(viewDetail.slug);
+                      setFormIsAudio(viewDetail.isAudio);
+                      setFormDescription(viewDetail.description || '');
+                      setIsModalOpen(true);
+                    }
                   }
                 }}
                 className="flex items-center gap-1.5 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 rounded-lg text-amber-300 font-semibold text-xs transition"
