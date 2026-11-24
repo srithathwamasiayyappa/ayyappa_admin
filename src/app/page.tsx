@@ -3222,21 +3222,24 @@ export default function EnterpriseSuperAdminDashboard() {
   if (isAuthChecking) {
     return (
       <div className="min-h-screen bg-[#071914] flex flex-col items-center justify-center p-4">
-        <div className="w-24 h-24 rounded-2xl border-2 border-[#D4AF37] bg-black/70 flex items-center justify-center p-2.5 shadow-2xl mb-4 overflow-hidden animate-pulse">
+        <div className="w-44 h-44 sm:w-52 sm:h-52 rounded-3xl border-2 border-[#D4AF37] bg-black/80 flex items-center justify-center p-4 shadow-[0_10px_40px_rgba(0,0,0,0.8),0_0_30px_rgba(212,175,55,0.25)] mb-6 overflow-hidden animate-pulse">
           <img
             src={resolveLogoDisplayUrl(appLogoUrl)}
             alt="Saranam Ayyappa Logo"
-            className="w-full h-full object-contain"
+            className="w-full h-full object-contain drop-shadow-xl"
             onError={(e: any) => {
               e.currentTarget.style.display = 'none';
               if (e.currentTarget.parentElement) {
-                e.currentTarget.parentElement.innerHTML = '<span class="text-3xl">🕉️</span>';
+                e.currentTarget.parentElement.innerHTML = '<span class="text-6xl">🕉️</span>';
               }
             }}
           />
         </div>
-        <p className="text-sm font-semibold text-[#FFB300] tracking-wider animate-pulse">
-          Loading Admin Console...
+        <h2 className="text-xl sm:text-2xl font-bold text-[#FFB300] tracking-wider text-center font-serif drop-shadow">
+          Thathwamasi Saranam Ayyappa
+        </h2>
+        <p className="text-xs text-emerald-400/80 mt-1.5 tracking-widest uppercase font-semibold">
+          Divine Sanctum Console
         </p>
       </div>
     );
