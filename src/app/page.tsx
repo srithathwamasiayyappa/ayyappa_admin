@@ -3239,24 +3239,80 @@ export default function EnterpriseSuperAdminDashboard() {
   // This completely eliminates the 2-second login screen flash on page refresh!
   if (isAuthChecking) {
     return (
-      <div className="min-h-screen bg-[#071914] flex flex-col items-center justify-center p-4">
-        <div className="w-44 h-44 sm:w-52 sm:h-52 rounded-3xl border-2 border-[#D4AF37] bg-black/80 flex items-center justify-center p-4 shadow-[0_10px_40px_rgba(0,0,0,0.8),0_0_30px_rgba(212,175,55,0.25)] mb-6 overflow-hidden animate-pulse">
+      <div 
+        style={{
+          minHeight: '100vh',
+          backgroundColor: '#071914',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          boxSizing: 'border-box'
+        }}
+      >
+        <div 
+          style={{
+            width: '180px',
+            height: '180px',
+            maxWidth: '180px',
+            maxHeight: '180px',
+            borderRadius: '24px',
+            border: '2px solid #D4AF37',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.8), 0 0 30px rgba(212,175,55,0.3)',
+            marginBottom: '24px',
+            overflow: 'hidden',
+            boxSizing: 'border-box'
+          }}
+        >
           <img
             src={resolveLogoDisplayUrl(appLogoUrl)}
             alt="Saranam Ayyappa Logo"
-            className="w-full h-full object-contain drop-shadow-xl"
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              width: 'auto',
+              height: 'auto',
+              objectFit: 'contain',
+              display: 'block'
+            }}
             onError={(e: any) => {
               e.currentTarget.style.display = 'none';
               if (e.currentTarget.parentElement) {
-                e.currentTarget.parentElement.innerHTML = '<span class="text-6xl">🕉️</span>';
+                e.currentTarget.parentElement.innerHTML = '<span style="font-size: 54px;">🕉️</span>';
               }
             }}
           />
         </div>
-        <h2 className="text-xl sm:text-2xl font-bold text-[#FFB300] tracking-wider text-center font-serif drop-shadow">
+        <h2 
+          style={{
+            color: '#FFB300',
+            fontSize: '24px',
+            fontWeight: 800,
+            letterSpacing: '1px',
+            textAlign: 'center',
+            margin: '0 0 6px 0',
+            fontFamily: 'serif'
+          }}
+        >
           Thathwamasi Saranam Ayyappa
         </h2>
-        <p className="text-xs text-emerald-400/80 mt-1.5 tracking-widest uppercase font-semibold">
+        <p 
+          style={{
+            color: '#34D399',
+            fontSize: '12px',
+            letterSpacing: '2px',
+            textTransform: 'uppercase',
+            fontWeight: 600,
+            margin: 0,
+            textAlign: 'center'
+          }}
+        >
           Divine Sanctum Console
         </p>
       </div>
