@@ -3296,25 +3296,12 @@ export default function EnterpriseSuperAdminDashboard() {
             fontWeight: 800,
             letterSpacing: '1px',
             textAlign: 'center',
-            margin: '0 0 6px 0',
+            margin: 0,
             fontFamily: 'serif'
           }}
         >
           Thathwamasi Saranam Ayyappa
         </h2>
-        <p 
-          style={{
-            color: '#34D399',
-            fontSize: '12px',
-            letterSpacing: '2px',
-            textTransform: 'uppercase',
-            fontWeight: 600,
-            margin: 0,
-            textAlign: 'center'
-          }}
-        >
-          Divine Sanctum Console
-        </p>
       </div>
     );
   }
