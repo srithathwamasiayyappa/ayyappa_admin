@@ -1995,31 +1995,49 @@ export default function EnterpriseSuperAdminDashboard() {
 
   const handleOpenViewContent = async (id: number | string) => {
     setLoading(true);
+    setActiveViewTypeTab('all');
     try {
       const res = await fetch(`${API_BASE_URL}/admin/content/${id}`);
       const json = await res.json();
       if (json && json.data) {
         const item = json.data;
+
+        // Fetch parent subcategory details if available so complete lyrics/composition and sister steps are loaded
+        let parentDetails: any = null;
+        if (item.categoryId) {
+          try {
+            const parentRes = await fetch(`${API_BASE_URL}/admin/subcategories/${item.categoryId}?lang=${selectedLang}`);
+            const parentJson = await parentRes.json();
+            if (parentJson && parentJson.data) {
+              parentDetails = parentJson.data;
+            }
+          } catch {}
+        }
+
         setViewDetail({
           id: String(item.id),
           slug: item.slug,
           title: item.title,
-          description: item.meaning || '',
+          description: parentDetails?.description || item.meaning || '',
           sacredText: item.sacredText || '',
           meaning: item.meaning || '',
           isType: true,
           isPublished: item.isPublished,
           displayOrder: item.displayOrder,
           parentId: item.categoryId,
-          parentTitle: item.category?.title || item.category?.translations?.[0]?.title || `Subcategory #${item.categoryId}`,
-          parentSlug: item.category?.slug,
-          translations: item.category?.translations || [],
-          contents: item.sacredText ? [{
-            id: item.id,
-            title: item.title,
-            sacredText: item.sacredText,
-            meaning: item.meaning
-          }] : []
+          parentTitle: parentDetails?.title || item.category?.title || item.category?.translations?.[0]?.title || `Subcategory #${item.categoryId}`,
+          parentSlug: parentDetails?.slug || item.category?.slug,
+          imageUrl: parentDetails?.imageUrl || item.category?.imageUrl || '',
+          translations: parentDetails?.translations || item.category?.translations || [],
+          contents: parentDetails?.contents && parentDetails.contents.length > 0 
+            ? parentDetails.contents 
+            : (item.sacredText ? [{
+                id: item.id,
+                title: item.title,
+                slug: item.slug,
+                sacredText: item.sacredText,
+                meaning: item.meaning
+              }] : [])
         });
         setIsViewModalOpen(true);
         setPageMode('VIEW_CATEGORY');
@@ -4970,6 +4988,19 @@ export default function EnterpriseSuperAdminDashboard() {
                       {/* Case A: If Attached Devotional Types / Verses Exist in Contents */}
                       {viewDetail.contents && viewDetail.contents.length > 0 ? (
                         <div className="space-y-6">
+                          {/* Top Subcategory Description (full song/procedure from DB) if present */}
+                          {activeViewTypeTab === 'all' && viewDetail.description && (
+                            <div className="p-3.5 bg-[#061A13]/90 rounded-xl border border-[#1B563D] text-left max-w-md mx-auto space-y-2">
+                              <span className="text-[10px] font-bold uppercase text-[#FFB300] tracking-wider block text-center">
+                                Devotional Composition / Procedure
+                              </span>
+                              <div 
+                                className="text-xs font-serif leading-relaxed text-[#FEF08A] whitespace-pre-wrap"
+                                dangerouslySetInnerHTML={{ __html: viewDetail.description }}
+                              />
+                            </div>
+                          )}
+
                           {(activeViewTypeTab === 'all' 
                             ? viewDetail.contents 
                             : [viewDetail.contents[typeof activeViewTypeTab === 'number' ? activeViewTypeTab : 0]]
