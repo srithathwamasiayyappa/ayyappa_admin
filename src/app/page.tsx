@@ -556,6 +556,8 @@ export default function EnterpriseSuperAdminDashboard() {
   const [typeTotalCount, setTypeTotalCount] = useState(0);
   const [editingTypeId, setEditingTypeId] = useState<number | null>(null);
   const [typeFormCategoryId, setTypeFormCategoryId] = useState<number | ''>('');
+  const [typeFormParentId, setTypeFormParentId] = useState<number | string>('all');
+  const [allSubcategoriesList, setAllSubcategoriesList] = useState<SubcategoryItem[]>([]);
   const [typeFormTitle, setTypeFormTitle] = useState('');
   const [typeFormSlug, setTypeFormSlug] = useState('');
   const [typeFormSacredText, setTypeFormSacredText] = useState('');
@@ -1019,6 +1021,18 @@ export default function EnterpriseSuperAdminDashboard() {
           })
           .catch(() => {});
       });
+  }, []);
+
+  const loadAllSubcategoriesList = useCallback((lang = 'en') => {
+    fetch(`${API_BASE_URL}/admin/subcategories?limit=500&lang=${lang}`)
+      .then(res => res.json())
+      .then(res => {
+        const list = res && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+        if (list.length > 0) {
+          setAllSubcategoriesList(list);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const resolveParentId = useCallback((keyOrId: string): string => {
@@ -1803,6 +1817,7 @@ export default function EnterpriseSuperAdminDashboard() {
     if (!isAuthenticated) return;
     loadStats();
     loadParentLookup(selectedLang);
+    loadAllSubcategoriesList(selectedLang);
     loadLanguages();
     loadAppLogo();
     loadTicker();
@@ -1825,6 +1840,8 @@ export default function EnterpriseSuperAdminDashboard() {
       loadAdminTemples();
     } else if (activeTab === 'content') {
       loadDevotionalContent(1, searchQuery);
+      loadAllSubcategoriesList(selectedLang);
+      loadParentLookup(selectedLang);
     } else if (activeTab === 'festivals') {
       loadFestivals(1, searchQuery);
     } else if (activeTab === 'panchangam') {
@@ -2279,14 +2296,28 @@ export default function EnterpriseSuperAdminDashboard() {
     setEditingTypeId(null);
     setTypeFormTitle('');
     setTypeFormSlug('');
+    loadAllSubcategoriesList(selectedLang);
+    loadParentLookup(selectedLang);
+
+    const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
     let targetCat = preselectedCatId;
     if (!targetCat && selectedSubcategoryForTypes !== 'all') {
       targetCat = Number(selectedSubcategoryForTypes);
     }
-    if (!targetCat && subcategories.length > 0) {
-      targetCat = Number(subcategories[0].id);
+    if (!targetCat && subPool.length > 0) {
+      targetCat = Number(subPool[0].id);
     }
     setTypeFormCategoryId(targetCat || '');
+    if (targetCat) {
+      const match = subPool.find(s => Number(s.id) === Number(targetCat));
+      if (match && match.parentId) {
+        setTypeFormParentId(match.parentId);
+      } else {
+        setTypeFormParentId('all');
+      }
+    } else {
+      setTypeFormParentId('all');
+    }
     setTypeFormSacredText('');
     setTypeFormMeaning('');
     setTypeFormDisplayOrder(devotionalContent.length + 1);
@@ -2299,6 +2330,17 @@ export default function EnterpriseSuperAdminDashboard() {
     setTypeFormTitle(item.title);
     setTypeFormSlug(item.slug);
     setTypeFormCategoryId(item.categoryId);
+    loadAllSubcategoriesList(selectedLang);
+    loadParentLookup(selectedLang);
+
+    const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
+    const match = subPool.find(s => Number(s.id) === Number(item.categoryId));
+    if (match && match.parentId) {
+      setTypeFormParentId(match.parentId);
+    } else {
+      setTypeFormParentId('all');
+    }
+
     setTypeFormSacredText(item.sacredText || '');
     setTypeFormMeaning(item.meaning || '');
     setTypeFormDisplayOrder(item.displayOrder || 1);
@@ -5239,22 +5281,99 @@ export default function EnterpriseSuperAdminDashboard() {
               </div>
 
               <div className="bg-[#1E1E1E] rounded-xl border border-[#2C2C2C] p-6 shadow-xl space-y-5 text-xs">
-                <div>
-                  <label className="block font-semibold text-gray-300 uppercase mb-1">
-                    Select Target Subcategory
-                  </label>
-                  <select 
-                    value={typeFormCategoryId}
-                    onChange={(e) => setTypeFormCategoryId(Number(e.target.value))}
-                    className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-amber-300 focus:outline-none focus:border-[#FFB300]"
-                  >
-                    <option value="">-- Choose Subcategory (e.g. Ayyappa Pooja, Ganapati Pooja, etc.) --</option>
-                    {subcategories.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.title} (/{s.slug})
-                      </option>
-                    ))}
-                  </select>
+                {/* 1. Cascading Category & Subcategory Assignment */}
+                <div className="bg-[#151515] p-4 rounded-xl border border-[#2A2A2A] space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-[#252525]">
+                    <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>📁</span>
+                      <span>Assign Category &amp; Target Subcategory</span>
+                    </span>
+                    <span className="text-[10px] text-gray-400">
+                      Step 1: Choose Parent Category &rarr; Step 2: Choose Subcategory
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Primary Parent Category Selector */}
+                    <div>
+                      <label className="block font-semibold text-gray-300 uppercase mb-1 flex items-center justify-between">
+                        <span>1. Parent Category</span>
+                        <span className="text-[10px] text-amber-400 font-normal">
+                          ({parentLookupList.length > 0 ? parentLookupList.length : 9} categories)
+                        </span>
+                      </label>
+                      <select 
+                        value={typeFormParentId}
+                        onChange={(e) => {
+                          const newParent = e.target.value;
+                          setTypeFormParentId(newParent);
+                          const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
+                          const filtered = newParent === 'all' 
+                            ? subPool 
+                            : subPool.filter(s => String(s.parentId) === String(newParent) || String(s.parentSlug) === String(newParent));
+                          if (filtered.length > 0) {
+                            if (!filtered.some(s => Number(s.id) === Number(typeFormCategoryId))) {
+                              setTypeFormCategoryId(Number(filtered[0].id));
+                            }
+                          } else {
+                            setTypeFormCategoryId('');
+                          }
+                        }}
+                        className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-amber-300 focus:outline-none focus:border-[#FFB300]"
+                      >
+                        <option value="all">-- All Parent Categories ({parentLookupList.length > 0 ? parentLookupList.length : 9}) --</option>
+                        {parentLookupList.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.title} ({p.subcategoriesCount ?? 0} subcategories)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Target Subcategory Selector */}
+                    <div>
+                      <label className="block font-semibold text-gray-300 uppercase mb-1 flex items-center justify-between">
+                        <span>2. Target Subcategory *</span>
+                        <span className="text-[10px] text-gray-400 font-normal">
+                          {(() => {
+                            const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
+                            const count = typeFormParentId === 'all' 
+                              ? subPool.length 
+                              : subPool.filter(s => String(s.parentId) === String(typeFormParentId) || String(s.parentSlug) === String(typeFormParentId)).length;
+                            return `(${count} available)`;
+                          })()}
+                        </span>
+                      </label>
+                      <select 
+                        value={typeFormCategoryId}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setTypeFormCategoryId(val || '');
+                          if (val) {
+                            const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
+                            const match = subPool.find(s => Number(s.id) === val);
+                            if (match && match.parentId) {
+                              setTypeFormParentId(match.parentId);
+                            }
+                          }
+                        }}
+                        className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-amber-300 focus:outline-none focus:border-[#FFB300]"
+                      >
+                        <option value="">-- Choose Subcategory (e.g. Ayyappa Pooja, Ganapati Pooja, etc.) --</option>
+                        {(() => {
+                          const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
+                          const filtered = typeFormParentId === 'all'
+                            ? subPool
+                            : subPool.filter(s => String(s.parentId) === String(typeFormParentId) || String(s.parentSlug) === String(typeFormParentId));
+                          return filtered.map(s => (
+                            <option key={s.id} value={s.id}>
+                              {s.parentTitle ? `${s.parentTitle} ➔ ` : ''}{s.title} (#{s.id})
+                            </option>
+                          ));
+                        })()}
+                      </select>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -6105,10 +6224,10 @@ export default function EnterpriseSuperAdminDashboard() {
                           }}
                           className="bg-[#141414] border border-[#2C2C2C] rounded-lg px-3 py-2 text-xs text-amber-400 focus:outline-none focus:border-[#FFB300] max-w-xs truncate"
                         >
-                          <option value="all">All Subcategories ({stats?.activeSubcategories ?? (subTotalCount || subcategories.length)})</option>
-                          {subcategories.map(s => (
+                          <option value="all">All Subcategories ({stats?.activeSubcategories ?? (allSubcategoriesList.length || subTotalCount || 134)})</option>
+                          {(allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories).map(s => (
                             <option key={s.id} value={s.id}>
-                              {s.title} (/{s.slug})
+                              {s.parentTitle ? `${s.parentTitle} ➔ ` : ''}{s.title} (/{s.slug})
                             </option>
                           ))}
                         </select>
