@@ -382,6 +382,9 @@ export default function EnterpriseSuperAdminDashboard() {
   const [loginPassword, setLoginPassword] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // Active Selected Type inside Subcategory View Detailed Page ('all' or type index number)
+  const [activeViewTypeTab, setActiveViewTypeTab] = useState<'all' | number>('all');
+
   // Profile Edit State
   const [editFullName, setEditFullName] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -1963,6 +1966,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
   const handleOpenViewSubcategory = async (id: string) => {
     setLoading(true);
+    setActiveViewTypeTab('all');
     try {
       // 1. First fetch dynamically from DB via subcategories detail API
       const res = await fetch(`${API_BASE_URL}/admin/subcategories/${id}?lang=${selectedLang}`);
@@ -4849,14 +4853,74 @@ export default function EnterpriseSuperAdminDashboard() {
                 
                 {/* LEFT: Sacred Devotional Reader (Authentic Green & Gold Scroll) */}
                 <div className="lg:col-span-7 flex flex-col items-center">
+                  
+                  {/* TYPE TABS / SELECTOR: Allows toggling between All Sacred Types or viewing a specific Type */}
+                  {viewDetail.contents && viewDetail.contents.length > 0 && (
+                    <div className="w-full mb-4 bg-[#082218] border border-[#1A4E38] rounded-xl p-3 shadow-lg space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#FFB300] uppercase tracking-wider flex items-center gap-1.5">
+                          <span>✨</span>
+                          <span>{viewDetail.title} Types ({viewDetail.contents.length})</span>
+                        </span>
+                        <span className="text-[11px] text-emerald-400 font-mono">
+                          {activeViewTypeTab === 'all' 
+                            ? 'Showing: Complete Chanting Sequence' 
+                            : `Showing Type #${(typeof activeViewTypeTab === 'number' ? activeViewTypeTab : 0) + 1} of ${viewDetail.contents.length}`}
+                        </span>
+                      </div>
+
+                      {/* Interactive Horizontal Scrollable Type Cards */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        {/* Option to view all steps combined */}
+                        <button
+                          type="button"
+                          onClick={() => setActiveViewTypeTab('all')}
+                          className={`p-2 rounded-lg text-left transition border flex flex-col justify-between gap-1 ${
+                            activeViewTypeTab === 'all'
+                              ? 'bg-[#FFB300] text-[#071C14] border-[#FFB300] font-bold shadow-md'
+                              : 'bg-[#061A13] text-gray-300 border-[#16422F] hover:border-[#FFB300]/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-[10px] font-mono uppercase">Full Flow</span>
+                            <span className="text-[9px] px-1 rounded bg-black/20">All</span>
+                          </div>
+                          <span className="truncate text-xs font-semibold">All {viewDetail.contents.length} Types</span>
+                        </button>
+
+                        {/* Each Individual Type Tab */}
+                        {viewDetail.contents.map((step, idx) => (
+                          <button
+                            key={step.id || idx}
+                            type="button"
+                            onClick={() => setActiveViewTypeTab(idx)}
+                            className={`p-2 rounded-lg text-left transition border flex flex-col justify-between gap-1 ${
+                              activeViewTypeTab === idx
+                                ? 'bg-[#FFB300] text-[#071C14] border-[#FFB300] font-bold shadow-md'
+                                : 'bg-[#061A13] text-gray-300 border-[#16422F] hover:border-[#FFB300]/50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-[10px] font-mono font-bold">#{idx + 1}</span>
+                              <span className="text-[9px] px-1 rounded bg-black/20">Type</span>
+                            </div>
+                            <span className="truncate text-xs font-semibold">{step.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="w-full flex items-center justify-between mb-3 px-1 text-xs">
                     <span className="font-bold text-[#FFB300] uppercase tracking-wider flex items-center gap-1.5">
                       <span>📜</span>
-                      <span>Devotional Reader View (Mobile Sanctuary Experience)</span>
+                      <span>Devotional Reader View</span>
                     </span>
                     <span className="text-[11px] text-emerald-400/90 font-mono">
                       {viewDetail.contents && viewDetail.contents.length > 0
-                        ? `${viewDetail.contents.length} Ordered Steps`
+                        ? activeViewTypeTab === 'all'
+                          ? `${viewDetail.contents.length} Ordered Steps`
+                          : `Type #${(typeof activeViewTypeTab === 'number' ? activeViewTypeTab : 0) + 1} / ${viewDetail.contents.length}`
                         : 'Single Sacred Composition'}
                     </span>
                   </div>
@@ -4868,10 +4932,16 @@ export default function EnterpriseSuperAdminDashboard() {
                     <div className="bg-[#0A2A1E] text-[#FFB300] border-b border-[#1E5C41] px-5 py-3 flex items-center justify-between shadow">
                       <div className="flex items-center gap-2">
                         <span className="text-base">🪔</span>
-                        <span className="font-bold text-sm tracking-wide text-[#FFB300] truncate max-w-xs">{viewDetail.title}</span>
+                        <span className="font-bold text-sm tracking-wide text-[#FFB300] truncate max-w-xs">
+                          {activeViewTypeTab !== 'all' && typeof activeViewTypeTab === 'number' && viewDetail.contents?.[activeViewTypeTab]
+                            ? viewDetail.contents[activeViewTypeTab].title
+                            : viewDetail.title}
+                        </span>
                       </div>
                       <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#071C14] border border-[#1E5C41] text-emerald-400">
-                        /{viewDetail.slug}
+                        /{activeViewTypeTab !== 'all' && typeof activeViewTypeTab === 'number' && (viewDetail.contents?.[activeViewTypeTab] as any)?.slug
+                          ? (viewDetail.contents[activeViewTypeTab] as any).slug
+                          : viewDetail.slug}
                       </span>
                     </div>
 
@@ -4897,7 +4967,10 @@ export default function EnterpriseSuperAdminDashboard() {
                       {/* Case A: If Attached Devotional Types / Verses Exist in Contents */}
                       {viewDetail.contents && viewDetail.contents.length > 0 ? (
                         <div className="space-y-6">
-                          {viewDetail.contents.map((v, idx) => (
+                          {(activeViewTypeTab === 'all' 
+                            ? viewDetail.contents 
+                            : [viewDetail.contents[typeof activeViewTypeTab === 'number' ? activeViewTypeTab : 0]]
+                          ).map((v, idx) => (
                             <div key={v.id || idx} className="space-y-2.5">
                               {/* Step Title / Deity in Radiant Gold */}
                               <h4 className="text-sm font-bold text-[#FFB300] tracking-wide uppercase flex items-center justify-center gap-1.5">
@@ -4919,7 +4992,7 @@ export default function EnterpriseSuperAdminDashboard() {
                               )}
 
                               {/* Dotted Gold Divider between steps */}
-                              {idx < (viewDetail.contents?.length || 0) - 1 && (
+                              {activeViewTypeTab === 'all' && idx < (viewDetail.contents?.length || 0) - 1 && (
                                 <div className="border-b border-dotted border-[#D4AF37]/35 w-3/4 mx-auto pt-4"></div>
                               )}
                             </div>
@@ -5054,6 +5127,64 @@ export default function EnterpriseSuperAdminDashboard() {
                             <div className="font-semibold text-gray-200 text-xs truncate">{tr.title}</div>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Subcategory Types & Stotras Cards (Matches website layout with 4 types) */}
+                  {viewDetail.contents && viewDetail.contents.length > 0 && (
+                    <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-5 shadow-xl space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-[#16422F]">
+                        <span className="text-xs font-bold text-[#FFB300] uppercase tracking-wide flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-[#FFB300]" />
+                          <span>{viewDetail.title} Types &amp; Stotras ({viewDetail.contents.length})</span>
+                        </span>
+                        <span className="text-[10px] text-emerald-400 font-mono">Select card to view detail</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        {viewDetail.contents.map((typeItem, tIdx) => {
+                          const isSelected = activeViewTypeTab === tIdx;
+                          return (
+                            <div
+                              key={typeItem.id || tIdx}
+                              onClick={() => setActiveViewTypeTab(tIdx)}
+                              className={`rounded-xl border p-3.5 cursor-pointer transition-all transform hover:-translate-y-0.5 shadow-md flex flex-col justify-between gap-3 ${
+                                isSelected
+                                  ? 'bg-[#0A3324] border-[#FFB300] shadow-[0_0_15px_rgba(255,179,0,0.2)]'
+                                  : 'bg-[#061A13] border-[#16422F] hover:border-[#FFB300]/60'
+                              }`}
+                            >
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="px-1.5 py-0.5 rounded bg-[#FFB300] text-[#071C14] text-[10px] font-black font-mono">
+                                    #{tIdx + 1}
+                                  </span>
+                                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#0E2F23] border border-[#16422F] text-amber-300 font-medium">
+                                    Devotional Type
+                                  </span>
+                                </div>
+                                <h4 className="font-bold text-xs text-gray-100 line-clamp-1">
+                                  {typeItem.title}
+                                </h4>
+                                <p className="text-[11px] text-gray-400 line-clamp-2 mt-1 leading-snug">
+                                  {typeItem.meaning || typeItem.sacredText || 'Sacred devotional recitation.'}
+                                </p>
+                              </div>
+
+                              <div className="pt-2 border-t border-[#16422F]/60 flex items-center justify-between text-[11px]">
+                                <span className={`font-semibold ${isSelected ? 'text-[#FFB300]' : 'text-emerald-400'}`}>
+                                  {isSelected ? '✓ Viewing' : 'View Detail'}
+                                </span>
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                                  isSelected ? 'bg-[#FFB300] text-[#071C14]' : 'bg-[#0E2F23] text-gray-300'
+                                }`}>
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
