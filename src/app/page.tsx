@@ -2,36 +2,36 @@
 
 import { API_BASE_URL, API_ORIGIN } from '../config/apiConfig';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  FolderTree, 
-  Radio, 
-  Sparkles, 
-  Plus, 
-  Search, 
-  Edit3, 
-  Music, 
-  BookOpen, 
-  CheckCircle2, 
-  Database, 
-  Globe, 
-  Calendar, 
-  Compass, 
-  MapPin, 
-  FileText, 
-  Users, 
-  Image as ImageIcon, 
-  ShieldCheck, 
-  Settings, 
-  LayoutDashboard, 
-  Layers, 
-  BellRing, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  FolderTree,
+  Radio,
+  Sparkles,
+  Plus,
+  Search,
+  Edit3,
+  Music,
+  BookOpen,
+  CheckCircle2,
+  Database,
+  Globe,
+  Calendar,
+  Compass,
+  MapPin,
+  FileText,
+  Users,
+  Image as ImageIcon,
+  ShieldCheck,
+  Settings,
+  LayoutDashboard,
+  Layers,
+  BellRing,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
-  RefreshCw, 
-  LogOut, 
-  Lock, 
-  Archive, 
+  RefreshCw,
+  LogOut,
+  Lock,
+  Archive,
   Key,
   User,
   Trash2,
@@ -39,6 +39,7 @@ import {
   ArrowLeft,
   CheckSquare,
   Eye,
+  EyeOff,
   UserX,
   UserCheck,
   AlertTriangle,
@@ -64,7 +65,8 @@ import {
   AlertCircle,
   Info,
   Phone,
-  Mail
+  Mail,
+  LogIn
 } from 'lucide-react';
 import { SplashScreenManager } from './components/SplashScreenManager';
 import { RichTextEditor } from './components/RichTextEditor';
@@ -156,6 +158,10 @@ interface FullCategoryDetail {
   parentSlug?: string | null;
   parentTitle?: string | null;
   imageUrl?: string | null;
+  hasExactTranslation?: boolean;
+  exactTitle?: string | null;
+  exactDescription?: string | null;
+  requestedLang?: string;
   translations?: Array<{ code: string; name: string; title: string; description: string | null }>;
   subcategories?: Array<{ id: string; title: string; slug: string; description: string | null }>;
   contents?: Array<{ id: number; title: string; sacredText: string | null; meaning: string | null }>;
@@ -262,6 +268,7 @@ interface DashboardStats {
 const resolveLogoDisplayUrl = (url?: string) => {
   if (!url || !url.trim()) return '/images/saranam-ayyappa-official-emblem.jpg';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+  if (url.startsWith('/images/')) return url;
   return `${API_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
@@ -363,24 +370,43 @@ export default function EnterpriseSuperAdminDashboard() {
     try {
       const token = localStorage.getItem('ayyappa_admin_token');
       const saved = localStorage.getItem('ayyappa_admin_profile');
-      if (token) {
+      if (token && token !== 'dev_master_token_authenticated') {
         setIsAuthenticated(true);
         if (saved) {
           try {
             const parsed = JSON.parse(saved);
             setAdminProfile(parsed);
             setEditFullName(parsed.fullName || '');
-          } catch {}
+          } catch { }
         }
         loadAdminProfile();
+      } else {
+        localStorage.removeItem('ayyappa_admin_token');
+        localStorage.removeItem('ayyappa_admin_profile');
+        setIsAuthenticated(false);
       }
-    } catch {} finally {
+    } catch { } finally {
       setIsAuthChecking(false);
     }
   }, [loadAdminProfile]);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
+  const [showLoginPassword, setShowLoginPassword] = useState<boolean>(false);
+  const [loginEmailTouched, setLoginEmailTouched] = useState<boolean>(false);
+  const [loginPasswordTouched, setLoginPasswordTouched] = useState<boolean>(false);
+  const [rememberAdmin, setRememberAdmin] = useState<boolean>(true);
+
+  // Restore remembered email on client mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('ayyappa_admin_saved_email');
+      if (savedEmail) {
+        setLoginEmail(savedEmail);
+      }
+    }
+  }, []);
 
   // Active Selected Type inside Subcategory View Detailed Page ('all' or type index number)
   const [activeViewTypeTab, setActiveViewTypeTab] = useState<'all' | number>('all');
@@ -502,7 +528,7 @@ export default function EnterpriseSuperAdminDashboard() {
     try {
       setLoading(true);
       await fetch(`${API_BASE_URL}/admin/deities/${id}`, { method: 'DELETE' });
-    } catch {}
+    } catch { }
     setDeities(prev => prev.filter(d => d.id !== id));
     setNotification('Deity entry removed successfully.');
     setTimeout(() => setNotification(null), 3500);
@@ -517,7 +543,7 @@ export default function EnterpriseSuperAdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: updated.isActive }),
       });
-    } catch {}
+    } catch { }
     setDeities(prev => prev.map(d => d.id === deity.id ? updated : d));
     setNotification(`Deity status updated to ${updated.isActive ? 'Active' : 'Inactive'}.`);
     setTimeout(() => setNotification(null), 3000);
@@ -586,7 +612,7 @@ export default function EnterpriseSuperAdminDashboard() {
   const [selectedDkTempleIndex, setSelectedDkTempleIndex] = useState(0);
   const [activeDkDetailTab, setActiveDkDetailTab] = useState<'about' | 'speciality' | 'contact' | 'timings' | 'events' | 'festivals' | 'gallery'>('about');
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
-  
+
   // Server-side Controls
   const [searchQuery, setSearchQuery] = useState('');
   const [isAudioFilter, setIsAudioFilter] = useState('');
@@ -599,7 +625,7 @@ export default function EnterpriseSuperAdminDashboard() {
     if (typeof window !== 'undefined') {
       try {
         return localStorage.getItem('ayyappa_admin_logo') || '';
-      } catch {}
+      } catch { }
     }
     return '';
   });
@@ -876,45 +902,48 @@ export default function EnterpriseSuperAdminDashboard() {
     }
   }, [notification]);
 
-  // Auth Handler
+  // Auth Handler: Strictly Dynamic Verification via Live API / Database (Zero Fallback / Mock Data)
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
+    setLoginEmailTouched(true);
+    setLoginPasswordTouched(true);
+
+    const email = loginEmail.trim();
+    if (!email) {
+      setAuthError('Please enter your administrative email address.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setAuthError('Please enter a valid administrative email format (e.g. admin@ayyappa.org).');
+      return;
+    }
+    if (!loginPassword) {
+      setAuthError('Please enter your master authentication password.');
+      return;
+    }
+
+    setIsLoggingIn(true);
     try {
       const res = await fetch(`${API_BASE_URL}/admin/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword })
+        body: JSON.stringify({ email, password: loginPassword })
       });
       const data = await res.json();
       if (!res.ok) {
-        // Developer / emergency fallback authentication for admin access
-        if (
-          loginEmail.toLowerCase().trim() === 'admin@ayyappa.org' ||
-          loginEmail.toLowerCase().trim() === 'superadmin@saranamayyappa.in' ||
-          loginEmail.toLowerCase().trim() === 'admin@saranamayyappa.org'
-        ) {
-          const fallbackAdmin = {
-            id: 1,
-            email: loginEmail.toLowerCase().trim(),
-            fullName: 'Swamiye Saranam Ayyappa Master Admin',
-            role: 'SUPER_ADMIN'
-          };
-          setIsAuthenticated(true);
-          setAdminProfile(fallbackAdmin);
-          setEditFullName(fallbackAdmin.fullName);
-          setActiveTab('dashboard');
-          setExpandedSection(null);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('ayyappa_admin_token', 'dev_master_token_authenticated');
-            localStorage.setItem('ayyappa_admin_profile', JSON.stringify(fallbackAdmin));
-          }
-          setNotification(`Welcome back, ${fallbackAdmin.fullName}!`);
-          return;
-        }
-
-        setAuthError(data.message || 'Login failed. Invalid credentials.');
+        setAuthError(data.message || 'Invalid administrative credentials. Access denied.');
+        setIsLoggingIn(false);
         return;
+      }
+      if (!data.token || !data.admin) {
+        setAuthError('Authentication response invalid. Please contact server administrator.');
+        setIsLoggingIn(false);
+        return;
+      }
+      if (rememberAdmin && typeof window !== 'undefined') {
+        localStorage.setItem('ayyappa_admin_saved_email', email);
       }
       setIsAuthenticated(true);
       setAdminProfile(data.admin);
@@ -922,28 +951,14 @@ export default function EnterpriseSuperAdminDashboard() {
       setActiveTab('dashboard');
       setExpandedSection(null);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('ayyappa_admin_token', data.token || 'authenticated');
+        localStorage.setItem('ayyappa_admin_token', data.token);
         localStorage.setItem('ayyappa_admin_profile', JSON.stringify(data.admin));
       }
       setNotification(`Welcome back, ${data.admin.fullName}!`);
     } catch {
-      // In case network or backend error occurs
-      const fallbackAdmin = {
-        id: 1,
-        email: loginEmail || 'admin@ayyappa.org',
-        fullName: 'Swamiye Saranam Ayyappa Master Admin',
-        role: 'SUPER_ADMIN'
-      };
-      setIsAuthenticated(true);
-      setAdminProfile(fallbackAdmin);
-      setEditFullName(fallbackAdmin.fullName);
-      setActiveTab('dashboard');
-      setExpandedSection(null);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('ayyappa_admin_token', 'dev_master_token_authenticated');
-        localStorage.setItem('ayyappa_admin_profile', JSON.stringify(fallbackAdmin));
-      }
-      setNotification(`Welcome back, ${fallbackAdmin.fullName}!`);
+      setAuthError('Unable to connect to authentication server. Please check your network connection.');
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -1039,7 +1054,7 @@ export default function EnterpriseSuperAdminDashboard() {
           setPage(res.meta?.page || 1);
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -1063,7 +1078,7 @@ export default function EnterpriseSuperAdminDashboard() {
               setParentLookupList(data);
             }
           })
-          .catch(() => {});
+          .catch(() => { });
       });
   }, []);
 
@@ -1076,7 +1091,7 @@ export default function EnterpriseSuperAdminDashboard() {
           setAllSubcategoriesList(list);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const resolveParentId = useCallback((keyOrId: string): string => {
@@ -1144,7 +1159,7 @@ export default function EnterpriseSuperAdminDashboard() {
           }
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [selectedLang, selectedParentCategoryFilter, resolveParentId, subLimit]);
 
@@ -1173,7 +1188,7 @@ export default function EnterpriseSuperAdminDashboard() {
           }
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [selectedSubcategoryForTypes, typeLimit]);
 
@@ -1182,7 +1197,7 @@ export default function EnterpriseSuperAdminDashboard() {
     fetch(`${API_BASE_URL}/panchangam/day?city=${city}&lang=${lang}`)
       .then(res => res.json())
       .then(data => setLivePanchangam(data))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const loadPanchangamEntries = useCallback((city = panchangamCity, year = panchangamYear, month = panchangamMonth, lang = selectedLang) => {
@@ -1317,7 +1332,7 @@ export default function EnterpriseSuperAdminDashboard() {
       .then(res => {
         if (res.data) setFestivals(res.data);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -1342,7 +1357,7 @@ export default function EnterpriseSuperAdminDashboard() {
     fetch(`${API_BASE_URL}/admin/media/audio`)
       .then(res => res.json())
       .then(res => { if (res.data) setAudioList(res.data); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // 6. Load CMS
@@ -1350,42 +1365,42 @@ export default function EnterpriseSuperAdminDashboard() {
     fetch(`${API_BASE_URL}/admin/cms`)
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setCmsPages(data); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const loadStats = useCallback(() => {
     fetch(`${API_BASE_URL}/admin/dashboard/stats`)
       .then(res => res.json())
       .then(data => setStats(data))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const loadLanguages = useCallback(() => {
     fetch(`${API_BASE_URL}/admin/languages`)
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setLanguages(data); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const loadUsers = useCallback(() => {
     fetch(`${API_BASE_URL}/admin/users?status=all`)
       .then(res => res.json())
       .then(res => { if (res.data) setUsers(res.data); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const loadDeletionRequests = useCallback(() => {
     fetch(`${API_BASE_URL}/admin/users/deletion-requests`)
       .then(res => res.json())
       .then(res => { if (res.data) setDeletionRequests(res.data); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const loadSoftDeletedUsers = useCallback(() => {
     fetch(`${API_BASE_URL}/admin/users/soft-deleted`)
       .then(res => res.json())
       .then(res => { if (res.data) setSoftDeletedUsers(res.data); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const loadDharmaKarthas = useCallback((searchQuery?: string) => {
@@ -1399,7 +1414,7 @@ export default function EnterpriseSuperAdminDashboard() {
           setDharmaKarthas(res.data);
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setDkLoading(false));
   }, [dkSearch]);
 
@@ -1503,27 +1518,27 @@ export default function EnterpriseSuperAdminDashboard() {
     fetch(`${API_BASE_URL}/admin/audit-logs`)
       .then(res => res.json())
       .then(res => { if (res.data) setAuditLogs(res.data); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const loadTicker = useCallback(() => {
     fetch(`${API_BASE_URL}/admin/settings/ticker`)
       .then(res => res.json())
       .then(data => { if (data.ticker) setTickerText(data.ticker); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const loadAppLogo = useCallback(() => {
     fetch(`${API_BASE_URL}/admin/settings/general`)
       .then(res => res.json())
-      .then(res => { 
+      .then(res => {
         if (res.data) {
           if (res.data.app_logo) {
             setAppLogoUrl(res.data.app_logo);
             setCustomLogoInput(res.data.app_logo);
             try {
               localStorage.setItem('ayyappa_admin_logo', res.data.app_logo);
-            } catch {}
+            } catch { }
           }
           if (res.data.app_title) setAppTitle(res.data.app_title);
           if (res.data.app_tagline) setAppTagline(res.data.app_tagline);
@@ -1541,7 +1556,7 @@ export default function EnterpriseSuperAdminDashboard() {
           if (res.data.social_whatsapp_url) setSocialWhatsappUrl(res.data.social_whatsapp_url);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const loadTickets = useCallback((status = selectedTicketFilter, search = searchQuery) => {
@@ -1558,7 +1573,7 @@ export default function EnterpriseSuperAdminDashboard() {
           if (res.stats) setTicketStats(res.stats);
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [selectedTicketFilter, searchQuery]);
 
@@ -1571,7 +1586,7 @@ export default function EnterpriseSuperAdminDashboard() {
           setTempleTypes(res.data);
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -1964,6 +1979,158 @@ export default function EnterpriseSuperAdminDashboard() {
     }
   };
 
+  // Dynamic Language Switcher for View Detailed Page (Queries DB via API for specific language)
+  const handleViewDetailChangeLang = async (langCode: string) => {
+    if (!viewDetail) return;
+    setSelectedLang(langCode);
+    setLoading(true);
+    try {
+      if (viewDetail.isType) {
+        // Devotional Subcategory Type / Sacred Verse
+        const res = await fetch(`${API_BASE_URL}/admin/content/${viewDetail.id}?lang=${langCode}`);
+        const json = await res.json();
+        if (json && json.data) {
+          const item = json.data;
+          let parentDetails: any = null;
+          if (item.categoryId) {
+            try {
+              const pRes = await fetch(`${API_BASE_URL}/admin/subcategories/${item.categoryId}?lang=${langCode}`);
+              const pJson = await pRes.json();
+              if (pJson && pJson.data) parentDetails = pJson.data;
+            } catch { }
+          }
+          setViewDetail((prev: any) => ({
+            ...prev,
+            title: item.title,
+            sacredText: item.sacredText || '',
+            meaning: item.meaning || '',
+            description: parentDetails?.description || item.meaning || '',
+            parentTitle: parentDetails?.title || prev?.parentTitle,
+            hasExactTranslation: item.hasExactTranslation,
+            requestedLang: langCode,
+            contents: parentDetails?.contents && parentDetails.contents.length > 0
+              ? parentDetails.contents
+              : [{
+                id: item.id,
+                title: item.title,
+                slug: item.slug,
+                sacredText: item.sacredText,
+                meaning: item.meaning
+              }]
+          }));
+        }
+      } else if (viewDetail.isSubcategory || viewDetail.parentId) {
+        // Devotional Subcategory
+        const res = await fetch(`${API_BASE_URL}/admin/subcategories/${viewDetail.id}?lang=${langCode}`);
+        const json = await res.json();
+        if (json && json.data) {
+          setViewDetail(json.data);
+        }
+      } else {
+        // Master Category
+        const res = await fetch(`${API_BASE_URL}/categories/${viewDetail.id}?lang=${langCode}`);
+        const json = await res.json();
+        const data = json.data || json;
+        if (data) {
+          setViewDetail(data);
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching view details for language:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Dynamic Language Switcher for Edit Subcategory (Fetches translation from DB via API; no mock fallback)
+  const handleEditSubcategoryChangeLang = async (langCode: string) => {
+    setSelectedLang(langCode);
+    if (!editingSubId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/subcategories/${editingSubId}?lang=${langCode}`);
+      const json = await res.json();
+      if (json && json.data) {
+        const data = json.data;
+        setViewDetail(data);
+        const exact = data.translations?.find((t: any) => t.code === langCode);
+        if (exact) {
+          setSubFormTitle(exact.title || '');
+          setSubFormDescription(exact.description || '');
+        } else if (data.hasExactTranslation) {
+          setSubFormTitle(data.exactTitle || data.title || '');
+          setSubFormDescription(data.exactDescription || data.description || '');
+        } else {
+          // No translation in DB for this language yet: leave blank so user can enter fresh translation
+          setSubFormTitle('');
+          setSubFormDescription('');
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching subcategory translation for language:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Dynamic Language Switcher for Edit Subcategory Type (Fetches translation from DB via API; no mock fallback)
+  const handleEditTypeChangeLang = async (langCode: string) => {
+    setSelectedLang(langCode);
+    if (!editingTypeId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/content/${editingTypeId}?lang=${langCode}`);
+      const json = await res.json();
+      if (json && json.data) {
+        const data = json.data;
+        if (data.hasExactTranslation) {
+          setTypeFormTitle(data.exactTitle || data.title || '');
+          setTypeFormSacredText(data.exactSacredText || data.sacredText || '');
+          setTypeFormMeaning(data.exactMeaning || data.meaning || '');
+        } else if (langCode === 'te' || langCode === 'en') {
+          setTypeFormTitle(data.title || '');
+          setTypeFormSacredText(data.sacredText || '');
+          setTypeFormMeaning(data.meaning || '');
+        } else {
+          // No translation in DB for this language yet: clear fields for new entry
+          setTypeFormTitle('');
+          setTypeFormSacredText('');
+          setTypeFormMeaning('');
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching type translation for language:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Dynamic Language Switcher for Edit Category (Fetches translation from DB via API; no mock fallback)
+  const handleEditCategoryChangeLang = async (langCode: string) => {
+    setSelectedLang(langCode);
+    if (!editingId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/categories/${editingId}?lang=${langCode}`);
+      const json = await res.json();
+      const data = json.data || json;
+      if (data) {
+        const exact = data.translations?.find((t: any) => (t.language?.code || t.code) === langCode);
+        if (exact) {
+          setFormTitle(exact.title || '');
+          setFormDescription(exact.description || '');
+        } else {
+          setFormTitle('');
+          setFormDescription('');
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching category translation for language:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleOpenViewSubcategory = async (id: string) => {
     setLoading(true);
     setActiveViewTypeTab('all');
@@ -2011,7 +2178,7 @@ export default function EnterpriseSuperAdminDashboard() {
             if (parentJson && parentJson.data) {
               parentDetails = parentJson.data;
             }
-          } catch {}
+          } catch { }
         }
 
         setViewDetail({
@@ -2029,15 +2196,15 @@ export default function EnterpriseSuperAdminDashboard() {
           parentSlug: parentDetails?.slug || item.category?.slug,
           imageUrl: parentDetails?.imageUrl || item.category?.imageUrl || '',
           translations: parentDetails?.translations || item.category?.translations || [],
-          contents: parentDetails?.contents && parentDetails.contents.length > 0 
-            ? parentDetails.contents 
+          contents: parentDetails?.contents && parentDetails.contents.length > 0
+            ? parentDetails.contents
             : (item.sacredText ? [{
-                id: item.id,
-                title: item.title,
-                slug: item.slug,
-                sacredText: item.sacredText,
-                meaning: item.meaning
-              }] : [])
+              id: item.id,
+              title: item.title,
+              slug: item.slug,
+              sacredText: item.sacredText,
+              meaning: item.meaning
+            }] : [])
         });
         setIsViewModalOpen(true);
         setPageMode('VIEW_CATEGORY');
@@ -2128,15 +2295,34 @@ export default function EnterpriseSuperAdminDashboard() {
     setPageMode('EDIT_SUBCATEGORY');
   };
 
-  const handleOpenEditSubcategory = (item: SubcategoryItem) => {
+  const handleOpenEditSubcategory = async (item: SubcategoryItem) => {
     setEditingSubId(item.id);
     setSubFormTitle(item.title);
     setSubFormSlug(item.slug);
     setSubFormParentId(item.parentId);
-    setSubFormDescription(item.description);
+    setSubFormDescription(item.description || '');
     setSubFormImageUrl(item.imageUrl || '');
     setIsSubModalOpen(true);
     setPageMode('EDIT_SUBCATEGORY');
+
+    // Dynamically fetch translation for currently active language directly from DB
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/subcategories/${item.id}?lang=${selectedLang}`);
+      const json = await res.json();
+      if (json && json.data) {
+        const d = json.data;
+        setViewDetail(d);
+        setActiveViewTypeTab('all');
+        const exact = d.translations?.find((t: any) => t.code === selectedLang);
+        if (exact) {
+          setSubFormTitle(exact.title || '');
+          setSubFormDescription(exact.description || '');
+        } else if (d.hasExactTranslation) {
+          setSubFormTitle(d.exactTitle || d.title || '');
+          setSubFormDescription(d.exactDescription || d.description || '');
+        }
+      }
+    } catch { }
   };
 
   const handleSubcategoryImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2388,7 +2574,7 @@ export default function EnterpriseSuperAdminDashboard() {
     setPageMode('EDIT_TYPE');
   };
 
-  const handleOpenEditType = (item: DevotionalContentItem) => {
+  const handleOpenEditType = async (item: DevotionalContentItem) => {
     setEditingTypeId(item.id);
     setTypeFormTitle(item.title);
     setTypeFormSlug(item.slug);
@@ -2409,6 +2595,32 @@ export default function EnterpriseSuperAdminDashboard() {
     setTypeFormDisplayOrder(item.displayOrder || 1);
     setTypeFormIsPublished(item.isPublished !== false);
     setPageMode('EDIT_TYPE');
+
+    // Dynamically fetch translation for currently active language directly from DB
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/content/${item.id}?lang=${selectedLang}`);
+      const json = await res.json();
+      if (json && json.data) {
+        const d = json.data;
+        if (d.hasExactTranslation) {
+          setTypeFormTitle(d.exactTitle || d.title || '');
+          setTypeFormSacredText(d.exactSacredText || d.sacredText || '');
+          setTypeFormMeaning(d.exactMeaning || d.meaning || '');
+        }
+      }
+    } catch { }
+
+    if (item.categoryId) {
+      try {
+        const resSub = await fetch(`${API_BASE_URL}/admin/subcategories/${item.categoryId}?lang=${selectedLang}`);
+        const jsonSub = await resSub.json();
+        if (jsonSub && jsonSub.data) {
+          setViewDetail(jsonSub.data);
+          const idx = jsonSub.data.contents?.findIndex((c: any) => Number(c.id) === Number(item.id));
+          setActiveViewTypeTab(idx !== -1 && idx !== undefined ? idx : 'all');
+        }
+      } catch { }
+    }
   };
 
   const handleSaveType = async () => {
@@ -2428,7 +2640,8 @@ export default function EnterpriseSuperAdminDashboard() {
       sacredText: typeFormSacredText.trim(),
       meaning: typeFormMeaning.trim(),
       displayOrder: Number(typeFormDisplayOrder) || 1,
-      isPublished: typeFormIsPublished
+      isPublished: typeFormIsPublished,
+      lang: selectedLang
     };
 
     setLoading(true);
@@ -2625,7 +2838,7 @@ export default function EnterpriseSuperAdminDashboard() {
         await fetch(`${API_BASE_URL}/admin/languages/${editingLangId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             name: langName.trim(),
             code: langCode.toLowerCase().trim(),
             nativeName: langNativeName.trim()
@@ -2636,8 +2849,8 @@ export default function EnterpriseSuperAdminDashboard() {
         const res = await fetch(`${API_BASE_URL}/admin/languages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            code: langCode.toLowerCase().trim(), 
+          body: JSON.stringify({
+            code: langCode.toLowerCase().trim(),
             name: langName.trim(),
             nativeName: langNativeName.trim()
           })
@@ -2893,7 +3106,7 @@ export default function EnterpriseSuperAdminDashboard() {
   const handleOpenEditFestival = (festival: FestivalItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setEditingFestivalId(festival.id);
-    const langMatch = festival.translations?.find((t: any) => t.language?.code === selectedLang) 
+    const langMatch = festival.translations?.find((t: any) => t.language?.code === selectedLang)
       || festival.translations?.find((t: any) => t.language?.code === 'en')
       || festival.translations?.find((t: any) => t.language?.code === 'te')
       || festival.translations?.[0];
@@ -2934,7 +3147,7 @@ export default function EnterpriseSuperAdminDashboard() {
     }
     setIsSavingFestival(true);
     try {
-      const url = editingFestivalId 
+      const url = editingFestivalId
         ? `${API_BASE_URL}/admin/panchangam/festivals/${editingFestivalId}`
         : `${API_BASE_URL}/admin/panchangam/festivals`;
       const method = editingFestivalId ? 'PUT' : 'POST';
@@ -2958,7 +3171,7 @@ export default function EnterpriseSuperAdminDashboard() {
       if (res.ok) {
         showToast(
           'Festival Saved',
-          editingFestivalId 
+          editingFestivalId
             ? `Festival "${festivalName}" updated successfully.`
             : `Festival "${festivalName}" created successfully.`,
           'success'
@@ -3188,7 +3401,7 @@ export default function EnterpriseSuperAdminDashboard() {
         setCustomLogoInput(savedUrl);
         try {
           localStorage.setItem('ayyappa_admin_logo', savedUrl);
-        } catch {}
+        } catch { }
         setNotification('Platform logo updated successfully.');
         loadAuditLogs();
       } else {
@@ -3239,7 +3452,7 @@ export default function EnterpriseSuperAdminDashboard() {
   // This completely eliminates the 2-second login screen flash on page refresh!
   if (isAuthChecking) {
     return (
-      <div 
+      <div
         style={{
           minHeight: '100vh',
           backgroundColor: '#071914',
@@ -3251,7 +3464,7 @@ export default function EnterpriseSuperAdminDashboard() {
           boxSizing: 'border-box'
         }}
       >
-        <div 
+        <div
           style={{
             width: '180px',
             height: '180px',
@@ -3289,7 +3502,7 @@ export default function EnterpriseSuperAdminDashboard() {
             }}
           />
         </div>
-        <h2 
+        <h2
           style={{
             color: '#FFB300',
             fontSize: '24px',
@@ -3307,71 +3520,207 @@ export default function EnterpriseSuperAdminDashboard() {
   }
 
   if (!isAuthenticated) {
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail.trim());
+    const isPasswordValid = loginPassword.length > 0;
+    const canSubmit = isEmailValid && isPasswordValid && !isLoggingIn;
+
     return (
-      <div className="min-h-screen bg-[#071914] flex items-center justify-center p-4">
-        <div className="bg-[#0c251e] border-2 border-[#D4AF37] rounded-2xl w-full max-w-md p-8 shadow-2xl space-y-6">
-          <div className="text-center space-y-2">
-            <div className="w-24 h-24 rounded-2xl border-2 border-[#D4AF37] bg-black/70 flex items-center justify-center p-2.5 shadow-md mx-auto mb-2 overflow-hidden">
-              <img
-                src={resolveLogoDisplayUrl(appLogoUrl)}
-                alt="Saranam Ayyappa Logo"
-                className="w-full h-full object-contain"
-                onError={(e: any) => {
-                  e.currentTarget.style.display = 'none';
-                  if (e.currentTarget.parentElement) {
-                    e.currentTarget.parentElement.innerHTML = '<span class="text-3xl">🕉️</span>';
-                  }
-                }}
-              />
-            </div>
-            <h1 className="text-xl font-bold text-[var(--admin-gold)] uppercase tracking-wide">Saranam Ayyappa</h1>
-            <p className="text-xs text-[var(--admin-ivory)] opacity-80">Enterprise Super Admin Portal</p>
+      <div className="min-h-screen bg-gradient-to-br from-[#020B07] via-[#051A13] to-[#020906] flex flex-col justify-between items-center p-4 sm:p-6 lg:p-8 relative overflow-hidden select-none">
+        {/* Ambient Top Glow Effect */}
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[550px] sm:w-[750px] h-[320px] bg-gradient-to-b from-[#D4AF37]/20 via-[#10B981]/10 to-transparent blur-3xl pointer-events-none rounded-full" />
+        <div className="absolute -bottom-32 right-1/4 w-[400px] h-[250px] bg-gradient-to-t from-[#D4AF37]/10 to-transparent blur-3xl pointer-events-none rounded-full" />
+
+        {/* Top Header Bar */}
+        <header className="w-full max-w-5xl flex items-center justify-between py-2 px-1 text-xs z-10">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🪔</span>
+            <span className="font-serif font-bold text-[#FFB300] tracking-widest text-[11px] sm:text-xs uppercase">
+              Thathwamasi
+            </span>
           </div>
+        </header>
 
-          {authError && (
-            <div className="p-3 bg-red-950/40 border border-red-500/50 rounded-lg text-xs text-red-300">
-              {authError}
-            </div>
-          )}
+        {/* Main Center Card (Glassmorphism + Divine Gold Sanctum Style) */}
+        <div className="w-full max-w-md sm:max-w-lg my-auto z-10 animate-in fade-in zoom-in-95 duration-300">
+          <div className="bg-gradient-to-b from-[#09261C] via-[#071F17] to-[#051711] rounded-3xl border-2 border-[#D4AF37]/60 shadow-[0_25px_70px_rgba(0,0,0,0.85),0_0_35px_rgba(212,175,55,0.18)] p-6 sm:p-10 space-y-6 relative overflow-hidden backdrop-blur-xl">
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-[var(--admin-ivory)] uppercase mb-1">Admin Email</label>
-              <input 
-                type="email" 
-                value={loginEmail} 
-                onChange={(e) => setLoginEmail(e.target.value)} 
-                required
-                className="w-full bg-[var(--admin-bg-base)] border border-[var(--admin-border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--admin-ivory)] focus:outline-none focus:border-[var(--admin-gold)]"
-              />
+            {/* Top Sacred Gold Arch Filigree Motif */}
+            <div className="flex justify-center -mt-2">
+              <svg className="w-16 h-7 text-[#FFB300] opacity-85" viewBox="0 0 100 40" fill="currentColor">
+                <path d="M50 0 C40 15, 20 20, 0 20 C20 25, 45 35, 50 40 C55 35, 80 25, 100 20 C80 20, 60 15, 50 0 Z"></path>
+              </svg>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[var(--admin-ivory)] uppercase mb-1">Master Password</label>
-              <input 
-                type="password" 
-                value={loginPassword} 
-                placeholder="Enter password..."
-                onChange={(e) => setLoginPassword(e.target.value)} 
-                required
-                className="w-full bg-[var(--admin-bg-base)] border border-[var(--admin-border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--admin-ivory)] focus:outline-none focus:border-[var(--admin-gold)]"
-              />
+            {/* Logo Emblem & Brand Header */}
+            <div className="text-center space-y-2.5">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 border-[#D4AF37] bg-[#030F0A] flex items-center justify-center p-2 mx-auto shadow-[0_10px_25px_rgba(0,0,0,0.8),0_0_20px_rgba(212,175,55,0.25)] relative overflow-hidden group">
+                <img
+                  src={resolveLogoDisplayUrl(appLogoUrl)}
+                  alt="Saranam Ayyappa Official Emblem"
+                  className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(255,179,0,0.3)] transition transform group-hover:scale-105 duration-300"
+                  onError={(e: any) => {
+                    if (!e.currentTarget.src.includes('saranam-ayyappa-official-emblem.jpg')) {
+                      e.currentTarget.src = '/images/saranam-ayyappa-official-emblem.jpg';
+                    }
+                  }}
+                />
+              </div>
+
+              <div>
+                <p className="text-[11px] font-semibold text-[#FDE68A] tracking-[0.25em] uppercase font-serif">
+                  śrī hariharasutāya namaḥ
+                </p>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#FFF59D] via-[#FFB300] to-[#FFA000] tracking-wide uppercase mt-1">
+                  Saranam Ayyappa
+                </h1>
+                <p className="text-xs text-emerald-300/80 font-medium tracking-wider mt-0.5">
+                  Enterprise Sanctum Super Admin Console
+                </p>
+              </div>
             </div>
 
-            <button 
-              type="submit" 
-              className="w-full bg-[var(--admin-maroon)] hover:bg-[var(--admin-maroon-mid)] border border-[var(--admin-gold)] text-[var(--admin-ivory)] py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2"
-            >
-              <Lock className="w-4 h-4 text-[var(--admin-gold)]" />
-              <span>Authenticate & Enter Console</span>
-            </button>
-          </form>
+            {/* Error Banner with Dynamic Feedback */}
+            {authError && (
+              <div
+                role="alert"
+                className="p-3.5 rounded-xl bg-rose-950/80 border border-rose-500/70 text-xs text-rose-200 flex items-start gap-2.5 shadow-lg shadow-rose-950/40 animate-in fade-in slide-in-from-top-2 duration-200"
+              >
+                <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 leading-relaxed">
+                  <span className="font-semibold block text-rose-300">Authentication Failed</span>
+                  <span>{authError}</span>
+                </div>
+              </div>
+            )}
 
-          <div className="p-3 bg-[var(--admin-bg-base)] rounded-lg border border-[var(--admin-border-subtle)] text-[11px] text-[var(--admin-ivory)] space-y-1">
-            <p className="font-semibold text-[var(--admin-gold)]">Security Standard:</p>
-            <p className="text-[var(--admin-ivory)] opacity-75">Bcrypt Salt 12 Rounds • Real Database Auth • Zero Mock Data</p>
+            {/* Authentication Form with Inline Validation & Responsive Touch-Targets */}
+            <form onSubmit={handleLogin} className="space-y-4 pt-1" noValidate>
+
+              {/* Admin Email Input */}
+              <div className="space-y-1.5 text-left">
+                <div className="flex items-center justify-between text-xs">
+                  <label className="font-bold text-gray-200 uppercase tracking-wider text-[11px]">
+                    Admin Email Address
+                  </label>
+                  {loginEmailTouched && !isEmailValid && loginEmail.length > 0 && (
+                    <span className="text-[10px] text-rose-400 font-medium">Invalid email format</span>
+                  )}
+                </div>
+                <div
+                  className={`relative flex items-center rounded-xl bg-[#030E09] border transition shadow-inner ${loginEmailTouched && !isEmailValid && loginEmail.length > 0
+                      ? 'border-rose-500/80 ring-1 ring-rose-500/30'
+                      : 'border-[#1B573D] focus-within:border-[#FFB300] focus-within:ring-2 focus-within:ring-[#FFB300]/25'
+                    }`}
+                >
+                  <Mail className="w-4 h-4 text-[#FFB300] ml-3.5 flex-shrink-0 opacity-80" />
+                  <input
+                    type="email"
+                    value={loginEmail}
+                    onChange={(e) => {
+                      setLoginEmail(e.target.value);
+                      if (authError) setAuthError(null);
+                    }}
+                    onBlur={() => setLoginEmailTouched(true)}
+                    placeholder="e.g. admin@ayyappa.org"
+                    required
+                    autoComplete="username"
+                    disabled={isLoggingIn}
+                    className="w-full bg-transparent px-3 py-3 text-xs sm:text-sm text-gray-100 placeholder-emerald-700/60 focus:outline-none font-medium disabled:opacity-50"
+                  />
+                  {loginEmail && isEmailValid && (
+                    <CheckCircle className="w-4 h-4 text-emerald-400 mr-3.5 flex-shrink-0" />
+                  )}
+                </div>
+              </div>
+
+              {/* Master Password Input with Show/Hide Toggle */}
+              <div className="space-y-1.5 text-left">
+                <div className="flex items-center justify-between text-xs">
+                  <label className="font-bold text-gray-200 uppercase tracking-wider text-[11px]">
+                    Master Authentication Password
+                  </label>
+                  {loginPasswordTouched && !isPasswordValid && (
+                    <span className="text-[10px] text-rose-400 font-medium">Password required</span>
+                  )}
+                </div>
+                <div
+                  className={`relative flex items-center rounded-xl bg-[#030E09] border transition shadow-inner ${loginPasswordTouched && !isPasswordValid
+                      ? 'border-rose-500/80 ring-1 ring-rose-500/30'
+                      : 'border-[#1B573D] focus-within:border-[#FFB300] focus-within:ring-2 focus-within:ring-[#FFB300]/25'
+                    }`}
+                >
+                  <Lock className="w-4 h-4 text-[#FFB300] ml-3.5 flex-shrink-0 opacity-80" />
+                  <input
+                    type={showLoginPassword ? 'text' : 'password'}
+                    value={loginPassword}
+                    onChange={(e) => {
+                      setLoginPassword(e.target.value);
+                      if (authError) setAuthError(null);
+                    }}
+                    onBlur={() => setLoginPasswordTouched(true)}
+                    placeholder="Enter master password..."
+                    required
+                    autoComplete="current-password"
+                    disabled={isLoggingIn}
+                    className="w-full bg-transparent px-3 py-3 text-xs sm:text-sm text-gray-100 placeholder-emerald-700/60 focus:outline-none font-medium disabled:opacity-50 tracking-wider"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(p => !p)}
+                    tabIndex={-1}
+                    className="p-1.5 mr-2 text-emerald-400/80 hover:text-[#FFB300] transition focus:outline-none"
+                    title={showLoginPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Remember Me Checkbox */}
+              <div className="flex items-center justify-between pt-1 text-xs text-emerald-300/80">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberAdmin}
+                    onChange={(e) => setRememberAdmin(e.target.checked)}
+                    className="w-4 h-4 rounded bg-[#030E09] border-[#1B573D] text-[#FFB300] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#FFB300]"
+                  />
+                  <span className="text-[11px] font-medium text-gray-300">Remember on this device</span>
+                </label>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={!canSubmit}
+                className={`w-full py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide transition-all duration-200 shadow-xl flex items-center justify-center gap-2 relative ${canSubmit
+                    ? 'bg-gradient-to-r from-[#FFB300] via-[#FFA000] to-[#FF8F00] hover:from-[#FFA000] hover:to-[#FF6F00] text-[#071C14] shadow-amber-500/25 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0'
+                    : 'bg-[#0E2F23] border border-[#1A4E38] text-gray-400 cursor-not-allowed opacity-75'
+                  }`}
+              >
+                {isLoggingIn ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-[#071C14]" />
+                    <span>Logging in...</span>
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="w-4 h-4" />
+                    <span>Login</span>
+                  </>
+                )}
+              </button>
+            </form>
+
           </div>
         </div>
+
+        {/* Bottom Devotional Footer */}
+        <footer className="w-full max-w-5xl py-3 text-center text-[11px] text-gray-400 z-10 flex flex-col sm:flex-row items-center justify-center gap-2 border-t border-[#16422F]/40 mt-4">
+          <p className="text-gray-400 font-medium">
+            © 2026 Saranam Ayyappa Devotional Trust. All Rights Reserved.
+          </p>
+        </footer>
       </div>
     );
   }
@@ -3715,18 +4064,17 @@ export default function EnterpriseSuperAdminDashboard() {
     <div className="flex h-screen bg-[#121212] overflow-hidden text-gray-100">
       {/* Industry-Level Animated Toast Notification */}
       {adminToast && (
-        <div 
-          role="alert" 
+        <div
+          role="alert"
           aria-live="assertive"
-          className={`fixed top-6 right-6 z-[99999] flex items-start gap-3 p-4 rounded-xl shadow-2xl backdrop-blur-xl border max-w-md w-full transition-all transform animate-in slide-in-from-top-4 duration-300 ${
-            adminToast.type === 'warning'
+          className={`fixed top-6 right-6 z-[99999] flex items-start gap-3 p-4 rounded-xl shadow-2xl backdrop-blur-xl border max-w-md w-full transition-all transform animate-in slide-in-from-top-4 duration-300 ${adminToast.type === 'warning'
               ? 'bg-[#211604]/95 border-amber-500/60 text-amber-200 shadow-amber-950/40'
               : adminToast.type === 'error'
-              ? 'bg-[#260a0a]/95 border-rose-500/60 text-rose-200 shadow-rose-950/40'
-              : adminToast.type === 'info'
-              ? 'bg-[#081e2b]/95 border-sky-500/60 text-sky-200 shadow-sky-950/40'
-              : 'bg-[#0c2419]/95 border-emerald-500/60 text-emerald-200 shadow-emerald-950/40'
-          }`}
+                ? 'bg-[#260a0a]/95 border-rose-500/60 text-rose-200 shadow-rose-950/40'
+                : adminToast.type === 'info'
+                  ? 'bg-[#081e2b]/95 border-sky-500/60 text-sky-200 shadow-sky-950/40'
+                  : 'bg-[#0c2419]/95 border-emerald-500/60 text-emerald-200 shadow-emerald-950/40'
+            }`}
         >
           <div className="flex-shrink-0 mt-0.5">
             {adminToast.type === 'warning' ? (
@@ -3771,9 +4119,9 @@ export default function EnterpriseSuperAdminDashboard() {
       <aside className="w-72 bg-[#181818] border-r border-[#2C2C2C] flex flex-col justify-between flex-shrink-0">
         <div className="flex flex-col h-full">
           <div className="p-4 border-b border-[#2C2C2C] flex items-center justify-center">
-            <img 
-              src={resolveLogoDisplayUrl(appLogoUrl)} 
-              alt="Saranam Ayyappa — Thathwamasi" 
+            <img
+              src={resolveLogoDisplayUrl(appLogoUrl)}
+              alt="Saranam Ayyappa — Thathwamasi"
               className="w-full max-h-24 object-contain rounded-xl shadow-lg border border-[var(--admin-gold)]/40 hover:border-[var(--admin-gold)] transition"
               onError={(e: any) => { console.warn('Sidebar logo load error:', e.target.src); }}
             />
@@ -3790,11 +4138,10 @@ export default function EnterpriseSuperAdminDashboard() {
                   <div key={item.key} className="space-y-1">
                     <button
                       onClick={item.onClick}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                        item.isActive 
-                          ? 'bg-orange-600/25 text-[#FFB300] border border-orange-500/40 shadow-sm' 
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${item.isActive
+                          ? 'bg-orange-600/25 text-[#FFB300] border border-orange-500/40 shadow-sm'
                           : 'text-gray-400 hover:text-gray-200 hover:bg-neutral-800/60'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3 truncate">
                         <Icon className="w-4 h-4 flex-shrink-0 text-orange-400/90" />
@@ -3813,11 +4160,10 @@ export default function EnterpriseSuperAdminDashboard() {
                           <button
                             key={sub.key}
                             onClick={sub.onClick}
-                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all text-left group ${
-                              sub.isActive
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all text-left group ${sub.isActive
                                 ? 'bg-gradient-to-r from-orange-500/20 to-amber-500/10 text-[#FFB300] font-semibold border border-[#FFB300]/40 shadow-sm'
                                 : 'text-gray-400 hover:text-gray-100 hover:bg-neutral-800/60'
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center gap-2 truncate">
                               <span className={`w-1.5 h-1.5 rounded-full transition-transform group-hover:scale-125 ${sub.isActive ? 'bg-[#FFB300] shadow-[0_0_6px_#FFB300]' : 'bg-gray-600'}`} />
@@ -3838,11 +4184,10 @@ export default function EnterpriseSuperAdminDashboard() {
                 <button
                   key={item.key}
                   onClick={item.onClick}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    item.isActive 
-                      ? 'bg-orange-600/25 text-[#FFB300] border border-orange-500/40 shadow-sm' 
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${item.isActive
+                      ? 'bg-orange-600/25 text-[#FFB300] border border-orange-500/40 shadow-sm'
                       : 'text-gray-400 hover:text-gray-200 hover:bg-neutral-800/60'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0 text-orange-400/90" />
                   <span className="truncate">{item.label}</span>
@@ -3861,11 +4206,10 @@ export default function EnterpriseSuperAdminDashboard() {
                   <button
                     key={sec.key}
                     onClick={sec.onClick}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                      sec.isActive
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${sec.isActive
                         ? 'bg-orange-600/25 text-[#FFB300] border border-orange-500/40 shadow-sm'
                         : 'text-gray-400 hover:text-gray-200 hover:bg-neutral-800/60'
-                    }`}
+                      }`}
                   >
                     <SecIcon className="w-4 h-4 flex-shrink-0 text-orange-400/90" />
                     <span className="truncate">{sec.label}</span>
@@ -3878,7 +4222,7 @@ export default function EnterpriseSuperAdminDashboard() {
           {/* Industry-Standard Admin User Profile Footer */}
           <div className="p-3 border-t border-[#2C2C2C] bg-[#141414]/90">
             <div className="flex items-center justify-between p-2 rounded-xl bg-[#1F1F1F] border border-[#2C2C2C] hover:border-[var(--admin-gold)]/40 transition group">
-              <button 
+              <button
                 onClick={() => setActiveTab('profile')}
                 className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
                 title="View Admin Profile Settings"
@@ -3917,17 +4261,23 @@ export default function EnterpriseSuperAdminDashboard() {
             </span>
           </div>
 
-          {/* Right-side corner Profile & Account Dropdown Widget (Hover only) */}
-          <div 
-            className="relative"
-            onMouseEnter={() => setIsProfileDropdownOpen(true)}
-            onMouseLeave={() => setIsProfileDropdownOpen(false)}
-          >
-            <div 
-              className="flex items-center gap-3 px-3 py-1.5 rounded-xl bg-[var(--admin-bg-card)] border border-[var(--admin-border-subtle)] hover:border-[var(--admin-gold)] transition group shadow-md cursor-pointer"
+          {/* Right-side corner Profile & Account Dropdown Widget (Click-triggered Dropdown) */}
+          <div className="relative">
+            {/* Click-outside backdrop overlay to close dropdown */}
+            {isProfileDropdownOpen && (
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setIsProfileDropdownOpen(false)}
+              />
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsProfileDropdownOpen(prev => !prev)}
+              className="relative z-40 flex items-center gap-3 px-3 py-1.5 rounded-xl bg-[var(--admin-bg-card)] border border-[var(--admin-border-subtle)] hover:border-[var(--admin-gold)] transition group shadow-md cursor-pointer text-left focus:outline-none"
             >
               <div className="w-8 h-8 rounded-full bg-[var(--admin-maroon-dark)] border-2 border-[var(--admin-gold)] flex items-center justify-center text-xs font-bold text-[var(--admin-gold)] shadow flex-shrink-0">
-                S
+                {adminProfile?.fullName ? adminProfile.fullName.charAt(0).toUpperCase() : 'S'}
               </div>
               <div className="text-left hidden sm:block max-w-[150px]">
                 <p className="text-xs font-bold text-[var(--admin-ivory)] truncate group-hover:text-[var(--admin-gold)] transition">
@@ -3936,11 +4286,11 @@ export default function EnterpriseSuperAdminDashboard() {
                 <p className="text-[10px] text-[var(--admin-gold)] font-medium leading-tight">My Account</p>
               </div>
               <ChevronDown className={`w-3.5 h-3.5 text-[var(--admin-gold)] transition-transform duration-200 ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
-            </div>
+            </button>
 
-            {/* Dynamic Dropdown Menu on Hover */}
+            {/* Dynamic Click-Triggered Dropdown Menu */}
             {isProfileDropdownOpen && (
-              <div 
+              <div
                 className="absolute right-0 top-full mt-2 w-60 bg-[var(--admin-bg-card)] border border-[var(--admin-border-subtle)] rounded-xl shadow-2xl p-2 z-50 space-y-1 backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-150"
               >
                 <div className="px-3 py-2 border-b border-[var(--admin-border-subtle)] mb-1">
@@ -3949,6 +4299,7 @@ export default function EnterpriseSuperAdminDashboard() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => {
                     setActiveTab('profile');
                     setIsProfileDropdownOpen(false);
@@ -3960,6 +4311,7 @@ export default function EnterpriseSuperAdminDashboard() {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     setIsProfileDropdownOpen(false);
                     handleLogout();
@@ -4553,9 +4905,9 @@ export default function EnterpriseSuperAdminDashboard() {
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="relative w-full sm:w-64">
                       <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
-                      <input 
-                        type="text" 
-                        placeholder="Search temple, deity, city, state..." 
+                      <input
+                        type="text"
+                        placeholder="Search temple, deity, city, state..."
                         value={templeSearch}
                         onChange={(e) => {
                           setTempleSearch(e.target.value);
@@ -4605,7 +4957,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     </select>
 
                     {/* Language Selector */}
-                    <select 
+                    <select
                       value={selectedLang}
                       onChange={(e) => {
                         setSelectedLang(e.target.value);
@@ -4764,11 +5116,10 @@ export default function EnterpriseSuperAdminDashboard() {
                                 type="button"
                                 onClick={() => handleToggleTempleActive(t)}
                                 title={t.isActive ? 'Active in Portal (Click to Hide)' : 'Hidden (Click to Publish)'}
-                                className={`px-2.5 py-1 rounded text-[10px] font-semibold flex items-center gap-1.5 transition ${
-                                  t.isActive
+                                className={`px-2.5 py-1 rounded text-[10px] font-semibold flex items-center gap-1.5 transition ${t.isActive
                                     ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/50 hover:bg-emerald-900'
                                     : 'bg-neutral-800 text-gray-400 border border-gray-700 hover:bg-neutral-700'
-                                }`}
+                                  }`}
                               >
                                 <span className={`w-1.5 h-1.5 rounded-full ${t.isActive ? 'bg-emerald-400' : 'bg-gray-500'}`} />
                                 <span>{t.isActive ? 'Published' : 'Draft'}</span>
@@ -4836,21 +5187,44 @@ export default function EnterpriseSuperAdminDashboard() {
                         {viewDetail.isType
                           ? 'Devotional Subcategory Type / Sacred Verse'
                           : viewDetail.isSubcategory || viewDetail.parentId
-                          ? 'Devotional Subcategory Sanctum Details'
-                          : 'Devotional Master Category'}
+                            ? 'Devotional Subcategory Sanctum Details'
+                            : 'Devotional Master Category'}
                       </span>
                     </h3>
                     <p className="text-xs text-emerald-400/80">
                       {viewDetail.isType
                         ? `Type DB Record #${viewDetail.id} — Linked to Subcategory`
                         : viewDetail.isSubcategory || viewDetail.parentId
-                        ? `Subcategory Record #${viewDetail.id} — Live Sanctum Worship Flow`
-                        : `Master Category Record #${viewDetail.id}`}
+                          ? `Subcategory Record #${viewDetail.id} — Live Sanctum Worship Flow`
+                          : `Master Category Record #${viewDetail.id}`}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Real-time Dynamic Language Switcher (Direct from DB via API) */}
+                  <div className="flex items-center gap-1.5 p-1 bg-[#061A13] border border-[#1E5C41] rounded-lg shadow-inner">
+                    <Globe className="w-3.5 h-3.5 text-[#FFB300] ml-1.5" />
+                    <span className="text-[11px] font-bold text-gray-300 uppercase px-1">DB Lang:</span>
+                    <div className="flex items-center gap-1 overflow-x-auto">
+                      {languages.map(l => (
+                        <button
+                          key={l.code}
+                          type="button"
+                          onClick={() => handleViewDetailChangeLang(l.code)}
+                          className={`px-2.5 py-1 rounded text-xs font-semibold transition flex items-center gap-1 ${selectedLang === l.code
+                              ? 'bg-[#FFB300] text-[#071C14] font-bold shadow'
+                              : 'text-gray-300 hover:text-[#FFB300] hover:bg-[#0D2E21]'
+                            }`}
+                          title={`Switch to ${l.name} (${l.code}) — Dynamically fetched from MySQL via API`}
+                        >
+                          <span>{l.nativeName || l.name}</span>
+                          <span className="text-[10px] opacity-70 uppercase font-mono">({l.code})</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -4914,10 +5288,10 @@ export default function EnterpriseSuperAdminDashboard() {
 
               {/* Main Detailed Grid: Devotional Scroll Reader (Left) & Admin Specs (Right) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
+
                 {/* LEFT: Sacred Devotional Reader (Authentic Green & Gold Scroll) */}
                 <div className="lg:col-span-7 flex flex-col items-center">
-                  
+
                   {/* TYPE TABS / SELECTOR: Allows toggling between All Sacred Types or viewing a specific Type */}
                   {viewDetail.contents && viewDetail.contents.length > 0 && (
                     <div className="w-full mb-4 bg-[#082218] border border-[#1A4E38] rounded-xl p-3 shadow-lg space-y-2.5">
@@ -4927,8 +5301,8 @@ export default function EnterpriseSuperAdminDashboard() {
                           <span>{viewDetail.title} Types ({viewDetail.contents.length})</span>
                         </span>
                         <span className="text-[11px] text-emerald-400 font-mono">
-                          {activeViewTypeTab === 'all' 
-                            ? 'Showing: Complete Chanting Sequence' 
+                          {activeViewTypeTab === 'all'
+                            ? 'Showing: Complete Chanting Sequence'
                             : `Showing Type #${(typeof activeViewTypeTab === 'number' ? activeViewTypeTab : 0) + 1} of ${viewDetail.contents.length}`}
                         </span>
                       </div>
@@ -4939,11 +5313,10 @@ export default function EnterpriseSuperAdminDashboard() {
                         <button
                           type="button"
                           onClick={() => setActiveViewTypeTab('all')}
-                          className={`p-2 rounded-lg text-left transition border flex flex-col justify-between gap-1 ${
-                            activeViewTypeTab === 'all'
+                          className={`p-2 rounded-lg text-left transition border flex flex-col justify-between gap-1 ${activeViewTypeTab === 'all'
                               ? 'bg-[#FFB300] text-[#071C14] border-[#FFB300] font-bold shadow-md'
                               : 'bg-[#061A13] text-gray-300 border-[#16422F] hover:border-[#FFB300]/50'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between w-full">
                             <span className="text-[10px] font-mono uppercase">Full Flow</span>
@@ -4958,11 +5331,10 @@ export default function EnterpriseSuperAdminDashboard() {
                             key={step.id || idx}
                             type="button"
                             onClick={() => setActiveViewTypeTab(idx)}
-                            className={`p-2 rounded-lg text-left transition border flex flex-col justify-between gap-1 ${
-                              activeViewTypeTab === idx
+                            className={`p-2 rounded-lg text-left transition border flex flex-col justify-between gap-1 ${activeViewTypeTab === idx
                                 ? 'bg-[#FFB300] text-[#071C14] border-[#FFB300] font-bold shadow-md'
                                 : 'bg-[#061A13] text-gray-300 border-[#16422F] hover:border-[#FFB300]/50'
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center justify-between w-full">
                               <span className="text-[10px] font-mono font-bold">#{idx + 1}</span>
@@ -4979,6 +5351,9 @@ export default function EnterpriseSuperAdminDashboard() {
                     <span className="font-bold text-[#FFB300] uppercase tracking-wider flex items-center gap-1.5">
                       <span>📜</span>
                       <span>Devotional Reader View</span>
+                      <span className="px-1.5 py-0.5 rounded bg-[#061A13] border border-[#16422F] text-[#FEF08A] font-mono text-[10px]">
+                        {languages.find(l => l.code === selectedLang)?.name || selectedLang.toUpperCase()}
+                      </span>
                     </span>
                     <span className="text-[11px] text-emerald-400/90 font-mono">
                       {viewDetail.contents && viewDetail.contents.length > 0
@@ -4989,9 +5364,46 @@ export default function EnterpriseSuperAdminDashboard() {
                     </span>
                   </div>
 
+                  {/* Real-time Dynamic Language DB Status Banner */}
+                  {viewDetail.hasExactTranslation === false && selectedLang !== 'te' && (
+                    <div className="w-full max-w-lg mb-3 p-3 bg-amber-950/40 border border-amber-600/50 rounded-xl flex items-center justify-between text-xs text-amber-200 shadow-md">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-[#FFB300] flex-shrink-0" />
+                        <span>
+                          No <strong>{languages.find(l => l.code === selectedLang)?.name || selectedLang.toUpperCase()}</strong> translation exists in MariaDB yet.
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (viewDetail.isType) {
+                            openTranslationModal('devotional_contents', viewDetail.id, [
+                              { key: 'title', label: 'Title', value: viewDetail.title },
+                              { key: 'sacredText', label: 'Sacred Chant', value: viewDetail.sacredText },
+                              { key: 'meaning', label: 'Meaning', value: viewDetail.meaning }
+                            ], () => {
+                              handleViewDetailChangeLang(selectedLang);
+                            });
+                          } else {
+                            openTranslationModal('categories', viewDetail.id, [
+                              { key: 'title', label: 'Title', value: viewDetail.title },
+                              { key: 'description', label: 'Sacred Notes', value: viewDetail.description, isHtml: true }
+                            ], () => {
+                              handleViewDetailChangeLang(selectedLang);
+                            });
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] font-bold rounded text-xs transition flex items-center gap-1 flex-shrink-0 ml-2"
+                      >
+                        <Sparkles className="w-3 h-3 text-[#071C14]" />
+                        <span>Add in DB</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Sacred Scroll Outer Container */}
                   <div className="w-full max-w-lg rounded-2xl overflow-hidden border-2 border-[#D4AF37]/60 shadow-[0_12px_45px_rgba(0,0,0,0.6),0_0_25px_rgba(212,175,55,0.15)] bg-[#071F17]">
-                    
+
                     {/* Top Sanctum Header mimicking mobile app with logo colors */}
                     <div className="bg-[#0A2A1E] text-[#FFB300] border-b border-[#1E5C41] px-5 py-3 flex items-center justify-between shadow">
                       <div className="flex items-center gap-2">
@@ -5011,7 +5423,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
                     {/* Scroll Canvas with Sanctum Green & Divine Gold Typography */}
                     <div className="bg-gradient-to-b from-[#082218] via-[#0A291E] to-[#071D15] p-6 text-center text-xs leading-relaxed max-h-[760px] overflow-y-auto space-y-5">
-                      
+
                       {/* Top Sacred Arch Motif (Lotus Filigree) in Gold */}
                       <div className="flex justify-center pt-2">
                         <svg className="w-16 h-8 text-[#FFB300] opacity-80" viewBox="0 0 100 40" fill="currentColor">
@@ -5037,15 +5449,15 @@ export default function EnterpriseSuperAdminDashboard() {
                               <span className="text-[10px] font-bold uppercase text-[#FFB300] tracking-wider block text-center">
                                 Devotional Composition / Procedure
                               </span>
-                              <div 
+                              <div
                                 className="text-xs font-serif leading-relaxed text-[#FEF08A] whitespace-pre-wrap"
                                 dangerouslySetInnerHTML={{ __html: viewDetail.description }}
                               />
                             </div>
                           )}
 
-                          {(activeViewTypeTab === 'all' 
-                            ? viewDetail.contents 
+                          {(activeViewTypeTab === 'all'
+                            ? viewDetail.contents
                             : [viewDetail.contents[typeof activeViewTypeTab === 'number' ? activeViewTypeTab : 0]]
                           ).map((v, idx) => (
                             <div key={v.id || idx} className="space-y-2.5">
@@ -5093,7 +5505,7 @@ export default function EnterpriseSuperAdminDashboard() {
                           )}
 
                           {viewDetail.description && (
-                            <div 
+                            <div
                               className="text-sm font-serif leading-relaxed text-[#FEF08A] whitespace-pre-wrap max-w-md mx-auto font-medium"
                               dangerouslySetInnerHTML={{ __html: viewDetail.description }}
                             />
@@ -5128,7 +5540,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
                 {/* RIGHT: Sanctum Specifications & Step Sequence Console (Green & Gold) */}
                 <div className="lg:col-span-5 space-y-5">
-                  
+
                   {/* Specifications Card */}
                   <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-5 shadow-xl space-y-4">
                     <div className="flex items-center justify-between pb-3 border-b border-[#16422F]">
@@ -5171,8 +5583,8 @@ export default function EnterpriseSuperAdminDashboard() {
                       <div className="bg-[#061A13] border border-[#16422F] rounded-lg p-3 flex items-center gap-3">
                         <div className="w-14 h-14 rounded-lg overflow-hidden border border-[#D4AF37]/50 flex-shrink-0 bg-neutral-900 flex items-center justify-center">
                           <img
-                            src={viewDetail.imageUrl.startsWith('http') || viewDetail.imageUrl.startsWith('data:') 
-                              ? viewDetail.imageUrl 
+                            src={viewDetail.imageUrl.startsWith('http') || viewDetail.imageUrl.startsWith('data:')
+                              ? viewDetail.imageUrl
                               : `${API_ORIGIN}${viewDetail.imageUrl.startsWith('/') ? '' : '/'}${viewDetail.imageUrl}`}
                             alt={viewDetail.title}
                             className="w-full h-full object-cover"
@@ -5226,11 +5638,10 @@ export default function EnterpriseSuperAdminDashboard() {
                             <div
                               key={typeItem.id || tIdx}
                               onClick={() => setActiveViewTypeTab(tIdx)}
-                              className={`rounded-xl border p-3.5 cursor-pointer transition-all transform hover:-translate-y-0.5 shadow-md flex flex-col justify-between gap-3 ${
-                                isSelected
+                              className={`rounded-xl border p-3.5 cursor-pointer transition-all transform hover:-translate-y-0.5 shadow-md flex flex-col justify-between gap-3 ${isSelected
                                   ? 'bg-[#0A3324] border-[#FFB300] shadow-[0_0_15px_rgba(255,179,0,0.2)]'
                                   : 'bg-[#061A13] border-[#16422F] hover:border-[#FFB300]/60'
-                              }`}
+                                }`}
                             >
                               <div>
                                 <div className="flex items-center justify-between mb-2">
@@ -5253,9 +5664,8 @@ export default function EnterpriseSuperAdminDashboard() {
                                 <span className={`font-semibold ${isSelected ? 'text-[#FFB300]' : 'text-emerald-400'}`}>
                                   {isSelected ? '✓ Viewing' : 'View Detail'}
                                 </span>
-                                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                                  isSelected ? 'bg-[#FFB300] text-[#071C14]' : 'bg-[#0E2F23] text-gray-300'
-                                }`}>
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isSelected ? 'bg-[#FFB300] text-[#071C14]' : 'bg-[#0E2F23] text-gray-300'
+                                  }`}>
                                   <ChevronRight className="w-3.5 h-3.5" />
                                 </div>
                               </div>
@@ -5285,8 +5695,8 @@ export default function EnterpriseSuperAdminDashboard() {
                     {viewDetail.contents && viewDetail.contents.length > 0 ? (
                       <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 text-xs">
                         {viewDetail.contents.map((step, idx) => (
-                          <div 
-                            key={step.id || idx} 
+                          <div
+                            key={step.id || idx}
                             className="bg-[#061A13] p-3 rounded-lg border border-[#16422F] hover:border-[#FFB300]/40 transition flex items-center justify-between gap-3 group"
                           >
                             <div className="min-w-0">
@@ -5327,507 +5737,1230 @@ export default function EnterpriseSuperAdminDashboard() {
             </div>
           )}
 
-          {/* IN-PAGE NORMAL PAGE MODE: CREATE / EDIT CATEGORY */}
+          {/* IN-PAGE NORMAL PAGE MODE: CREATE / EDIT CATEGORY (SANCTUM GREEN & GOLD LAYOUT MATCHING VIEW DETAILED) */}
           {pageMode === 'EDIT_CATEGORY' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="bg-[#1C1C1C] rounded-xl border border-[#2C2C2C] p-5 flex items-center justify-between shadow-xl">
+              {/* Header: Sanctum Green & Divine Gold */}
+              <div className="bg-[#071C14] rounded-xl border border-[#1A4E38] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setPageMode('LIST')}
-                    className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-neutral-700 shadow"
+                    className="px-3 py-1.5 rounded-lg bg-[#0D2E21] hover:bg-[#133F2E] text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-[#1E5C41] shadow"
                   >
-                    <ArrowLeft className="w-4 h-4 text-amber-400" />
+                    <ArrowLeft className="w-4 h-4 text-[#FFB300]" />
                     <span>Back to Categories</span>
                   </button>
-                  <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-orange-400" />
-                    <span>{editingId ? 'Edit Devotional Category' : 'Create New Devotional Category'}</span>
-                  </h3>
-                </div>
-              </div>
-
-              <div className="bg-[#1E1E1E] rounded-xl border border-[#2C2C2C] p-6 shadow-xl space-y-5 text-xs">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-semibold text-gray-300 uppercase mb-1">Category Title ({selectedLang.toUpperCase()})</label>
-                    <input 
-                      type="text"
-                      value={formTitle}
-                      onChange={(e) => setFormTitle(e.target.value)}
-                      placeholder="e.g. శ్రీ అయ్యప్ప శరణు ఘోష"
-                      className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-gray-300 uppercase mb-1">URL Identifier (Slug)</label>
-                    <input 
-                      type="text"
-                      value={formSlug}
-                      onChange={(e) => setFormSlug(e.target.value)}
-                      placeholder="e.g. daily-pooja"
-                      className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
-                    />
+                    <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-[#FFB300]" />
+                      <span>{editingId ? 'Edit Devotional Category' : 'Create New Devotional Category'}</span>
+                    </h3>
+                    <p className="text-xs text-emerald-400/80">
+                      {editingId ? `Master Category Record #${editingId} — Sanctum Pillar` : 'New Master Category Record'}
+                    </p>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block font-semibold text-gray-300 uppercase mb-1">Content Type</label>
-                  <select 
-                    value={formIsAudio ? 'true' : 'false'}
-                    onChange={(e) => setFormIsAudio(e.target.value === 'true')}
-                    className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
-                  >
-                    <option value="false">Text & Devotional Slokas (Readable)</option>
-                    <option value="true">Audio Track (Sing-along & Chant)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-gray-300 uppercase mb-1 flex items-center justify-between">
-                    <span>Description (Rich Text & Formatted Notes)</span>
-                    <span className="text-amber-400 font-mono text-[10px]">CKEditor Mode</span>
-                  </label>
-                  <RichTextEditor
-                    value={formDescription}
-                    onChange={(val) => setFormDescription(val)}
-                    placeholder="Brief spiritual summary of this sacred section..."
-                    minHeight="140px"
-                    hideTemplateBtn={true}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#2C2C2C]">
-                  <button 
-                    type="button"
-                    onClick={() => openTranslationModal('categories', editingId || undefined, [
-                      { key: 'title', label: 'Category Title', value: formTitle },
-                      { key: 'description', label: 'Description', value: formDescription, isHtml: true }
-                    ], (trans, lang) => {
-                      if (trans.title) setFormTitle(trans.title);
-                      if (trans.description) setFormDescription(trans.description);
-                      if (lang) setSelectedLang(lang);
-                    })}
-                    className="bg-amber-600/20 hover:bg-amber-600/40 text-amber-300 border border-amber-500/40 px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>✨ Translate (v3)</span>
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <button 
-                      type="button"
-                      onClick={() => setPageMode('LIST')}
-                      className="px-4 py-2 rounded-lg text-xs text-gray-400 hover:text-gray-200 transition"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={handleSaveCategory}
-                      className="bg-[#D84315] hover:bg-[#BF360C] text-white px-5 py-2 rounded-lg text-xs font-semibold transition shadow-md shadow-orange-950"
-                    >
-                      Save Category to MySQL
-                    </button>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Language Selector in Edit Category Mode */}
+                  <div className="flex items-center gap-1.5 p-1 bg-[#061A13] border border-[#1E5C41] rounded-lg shadow-inner">
+                    <Globe className="w-3.5 h-3.5 text-[#FFB300] ml-1.5" />
+                    <span className="text-[11px] font-bold text-gray-300 uppercase px-1">Lang:</span>
+                    <div className="flex items-center gap-1 overflow-x-auto">
+                      {languages.map(l => (
+                        <button
+                          key={l.code}
+                          type="button"
+                          onClick={() => handleEditCategoryChangeLang(l.code)}
+                          className={`px-2.5 py-1 rounded text-xs font-semibold transition flex items-center gap-1 ${selectedLang === l.code
+                              ? 'bg-[#FFB300] text-[#071C14] font-bold shadow'
+                              : 'text-gray-300 hover:text-[#FFB300] hover:bg-[#0D2E21]'
+                            }`}
+                          title={`Edit ${l.name} (${l.code}) — Dynamically fetched from MySQL via API`}
+                        >
+                          <span>{l.nativeName || l.name}</span>
+                          <span className="text-[10px] opacity-70 uppercase font-mono">({l.code})</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* IN-PAGE NORMAL PAGE MODE: CREATE / EDIT SUBCATEGORY */}
-          {pageMode === 'EDIT_SUBCATEGORY' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="bg-[#1C1C1C] rounded-xl border border-[#2C2C2C] p-5 flex items-center justify-between shadow-xl">
-                <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setPageMode('LIST')}
-                    className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-neutral-700 shadow"
+                    className="px-4 py-2 bg-[#0D2E21] hover:bg-[#133F2E] border border-[#1E5C41] rounded-lg text-gray-200 font-semibold text-xs transition"
                   >
-                    <ArrowLeft className="w-4 h-4 text-amber-400" />
-                    <span>Back to Subcategories</span>
+                    Cancel
                   </button>
-                  <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
-                    <Layers className="w-5 h-5 text-orange-400" />
-                    <span>{editingSubId ? 'Edit Subcategory / Chapter' : 'Create Subcategory or Chapter'}</span>
-                  </h3>
+                  <button
+                    type="button"
+                    onClick={handleSaveCategory}
+                    className="flex items-center gap-1.5 px-5 py-2 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] font-bold text-xs rounded-lg transition shadow-lg shadow-amber-500/20"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Save Category to MySQL</span>
+                  </button>
                 </div>
               </div>
 
-              <div className="bg-[#1E1E1E] rounded-xl border border-[#2C2C2C] p-6 shadow-xl space-y-5 text-xs">
-                <div>
-                  <label className="block font-semibold text-gray-300 uppercase mb-1">
-                    Select Parent Category (Hierarchy Target)
-                  </label>
-                  <select 
-                    value={subFormParentId}
-                    onChange={(e) => setSubFormParentId(Number(e.target.value))}
-                    className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-amber-300 focus:outline-none focus:border-[#FFB300]"
-                  >
-                    <option value="">-- Choose Parent (e.g. Pooja Vidhanam, Divine Stotras, etc.) --</option>
-                    {parentLookupList.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.parentId ? `└── [Sub-Level] ${p.title} (#${p.id})` : `[Main Category] ${p.title} (#${p.id})`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              {/* 2-Column Grid: Left Edit Form & Right Live Devotional Preview */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-semibold text-gray-300 uppercase mb-1">
-                      Subcategory Title ({selectedLang.toUpperCase()})
-                    </label>
-                    <input 
-                      type="text"
-                      value={subFormTitle}
-                      onChange={(e) => setSubFormTitle(e.target.value)}
-                      placeholder="e.g. శ్రీ సత్యనారాయణ స్వామి వ్రత కథ"
-                      className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-gray-300 uppercase mb-1">
-                      URL Identifier (Slug)
-                    </label>
-                    <input 
-                      type="text"
-                      value={subFormSlug}
-                      onChange={(e) => setSubFormSlug(e.target.value)}
-                      placeholder="e.g. satyanarayana-vratham"
-                      className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
-                    />
-                  </div>
-                </div>
-
-                {/* Artwork Image Upload / Preview */}
-                <div>
-                  <label className="block font-semibold text-gray-300 uppercase mb-1">
-                    Subcategory Artwork / Image
-                  </label>
-                  <div className="p-4 bg-[#141414] border border-[#2C2C2C] rounded-xl flex flex-col sm:flex-row items-center gap-4">
-                    <div className="w-16 h-16 rounded-lg bg-[#1E1E1E] border border-amber-500/30 overflow-hidden flex items-center justify-center flex-shrink-0">
-                      {subFormImageUrl ? (
-                        <img 
-                          src={subFormImageUrl.startsWith('http') || subFormImageUrl.startsWith('data:') ? subFormImageUrl : `${API_ORIGIN}${subFormImageUrl.startsWith('/') ? '' : '/'}${subFormImageUrl}`} 
-                          alt="Preview" 
-                          className="w-full h-full object-cover"
-                          onError={(e: any) => { e.currentTarget.style.display = 'none'; }}
-                        />
-                      ) : (
-                        <span className="text-xl">🪔</span>
-                      )}
+                {/* LEFT: Category Input Form */}
+                <div className="lg:col-span-7 bg-[#082218] rounded-xl border border-[#1A4E38] p-6 shadow-xl space-y-5 text-xs">
+                  {/* Language Status Notice */}
+                  {editingId && !formTitle && (
+                    <div className="p-3 bg-amber-950/40 border border-amber-600/50 rounded-xl flex items-center gap-2 text-xs text-amber-200">
+                      <AlertCircle className="w-4 h-4 text-[#FFB300] flex-shrink-0" />
+                      <span>
+                        No <strong>{languages.find(l => l.code === selectedLang)?.name || selectedLang.toUpperCase()}</strong> translation exists in MariaDB yet. Enter title &amp; description below to create it directly in MySQL.
+                      </span>
                     </div>
-                    <div className="flex-1 space-y-2 w-full">
-                      <div className="flex items-center gap-2">
-                        <label className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 rounded cursor-pointer border border-neutral-700 transition flex items-center gap-1.5 text-xs font-semibold">
-                          <Upload className="w-3.5 h-3.5" />
-                          <span>Upload Image File</span>
-                          <input type="file" accept="image/*" onChange={handleSubcategoryImageUpload} className="hidden" />
-                        </label>
-                        {subFormImageUrl && (
-                          <button
-                            type="button"
-                            onClick={() => setSubFormImageUrl('')}
-                            className="px-2 py-1 bg-red-950/40 text-red-400 hover:text-red-300 rounded text-xs border border-red-900/30"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold text-gray-300 uppercase mb-1">
+                        Category Title ({selectedLang.toUpperCase()}) *
+                      </label>
                       <input
                         type="text"
-                        placeholder="Or paste artwork URL (e.g. /images/subcategories/pooja/ayyappa-pooja.webp)"
-                        value={subFormImageUrl}
-                        onChange={(e) => setSubFormImageUrl(e.target.value)}
-                        className="w-full bg-[#181818] border border-[#2C2C2C] rounded-md px-3 py-1.5 text-xs text-gray-300 font-mono placeholder-gray-500 focus:outline-none focus:border-[#FFB300]"
+                        value={formTitle}
+                        onChange={(e) => setFormTitle(e.target.value)}
+                        placeholder="e.g. శ్రీ అయ్యప్ప శరణు ఘోష"
+                        className="w-full bg-[#061A13] border border-[#1E5C41] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-gray-300 uppercase mb-1">
+                        URL Identifier (Slug) *
+                      </label>
+                      <input
+                        type="text"
+                        value={formSlug}
+                        onChange={(e) => setFormSlug(e.target.value)}
+                        placeholder="e.g. daily-pooja"
+                        className="w-full bg-[#061A13] border border-[#1E5C41] rounded-lg px-3 py-2 text-[#FFB300] font-mono focus:outline-none focus:border-[#FFB300]"
                       />
                     </div>
                   </div>
+
+                  <div>
+                    <label className="block font-bold text-gray-300 uppercase mb-1">Content Type</label>
+                    <select
+                      value={formIsAudio ? 'true' : 'false'}
+                      onChange={(e) => setFormIsAudio(e.target.value === 'true')}
+                      className="w-full bg-[#061A13] border border-[#1E5C41] rounded-lg px-3 py-2 text-[#FEF08A] font-medium focus:outline-none focus:border-[#FFB300]"
+                    >
+                      <option value="false">Text &amp; Devotional Slokas (Readable)</option>
+                      <option value="true">Audio Track (Sing-along &amp; Chant)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-gray-300 uppercase mb-1 flex items-center justify-between">
+                      <span>Description (Rich Text &amp; Formatted Notes)</span>
+                      <span className="text-[#FFB300] font-mono text-[10px]">Rich Text Mode</span>
+                    </label>
+                    <RichTextEditor
+                      value={formDescription}
+                      onChange={(val) => setFormDescription(val)}
+                      placeholder="Brief spiritual summary of this sacred section..."
+                      minHeight="180px"
+                      hideTemplateBtn={true}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#1E5C41]">
+                    <button
+                      type="button"
+                      onClick={() => openTranslationModal('categories', editingId || undefined, [
+                        { key: 'title', label: 'Category Title', value: formTitle },
+                        { key: 'description', label: 'Description', value: formDescription, isHtml: true }
+                      ], (trans, lang) => {
+                        if (trans.title) setFormTitle(trans.title);
+                        if (trans.description) setFormDescription(trans.description);
+                        if (lang) setSelectedLang(lang);
+                      })}
+                      className="bg-[#FFB300]/15 hover:bg-[#FFB300]/25 text-[#FFB300] border border-[#FFB300]/40 px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-[#FFB300]" />
+                      <span>✨ Translate (v3)</span>
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPageMode('LIST')}
+                        className="px-4 py-2 bg-[#0D2E21] hover:bg-[#133F2E] border border-[#1E5C41] rounded-lg text-gray-200 text-xs font-semibold transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveCategory}
+                        className="bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] px-5 py-2 rounded-lg text-xs font-bold transition shadow-lg shadow-amber-500/20"
+                      >
+                        Save Category to MySQL
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block font-semibold text-gray-300 uppercase mb-1 flex items-center justify-between">
-                    <span>Sacred Notes / Procedure Description</span>
-                    <span className="text-amber-400 font-mono text-[10px]">CKEditor Mode</span>
-                  </label>
-                  <RichTextEditor
-                    value={subFormDescription}
-                    onChange={(val) => setSubFormDescription(val)}
-                    placeholder="Enter full step-by-step procedure, sankalpam, or chapter text..."
-                    minHeight="140px"
-                    hideTemplateBtn={true}
-                  />
-                </div>
+                {/* RIGHT: Live Category Devotional Card Preview */}
+                <div className="lg:col-span-5 space-y-5">
+                  <div className="flex items-center justify-between px-1 text-xs">
+                    <span className="font-bold text-[#FFB300] uppercase tracking-wider flex items-center gap-1.5">
+                      <span>📜</span>
+                      <span>Category Card Preview</span>
+                    </span>
+                    <span className="text-[11px] text-emerald-400 font-mono">Real-time Portal Card</span>
+                  </div>
 
-                <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#2C2C2C]">
-                  <button 
-                    type="button"
-                    onClick={() => openTranslationModal('categories', editingSubId || undefined, [
-                      { key: 'title', label: 'Subcategory Title', value: subFormTitle },
-                      { key: 'description', label: 'Sacred Notes', value: subFormDescription, isHtml: true }
-                    ], (trans, lang) => {
-                      if (trans.title) setSubFormTitle(trans.title);
-                      if (trans.description) setSubFormDescription(trans.description);
-                      if (lang) setSelectedLang(lang);
-                    })}
-                    className="bg-amber-600/20 hover:bg-amber-600/40 text-amber-300 border border-amber-500/40 px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>✨ Translate (v3)</span>
-                  </button>
+                  <div className="w-full rounded-2xl overflow-hidden border-2 border-[#D4AF37]/60 shadow-[0_12px_45px_rgba(0,0,0,0.6),0_0_25px_rgba(212,175,55,0.15)] bg-[#071F17]">
+                    <div className="bg-[#0A2A1E] text-[#FFB300] border-b border-[#1E5C41] px-4 py-2.5 flex items-center justify-between shadow">
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="text-base">🪔</span>
+                        <span className="font-bold text-xs tracking-wide text-[#FFB300] truncate">
+                          {formTitle || 'Category Title'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#071C14] border border-[#1E5C41] text-emerald-400">
+                        /{formSlug || 'slug'}
+                      </span>
+                    </div>
 
-                  <div className="flex items-center gap-2">
-                    <button 
-                      type="button"
-                      onClick={() => setPageMode('LIST')}
-                      className="px-4 py-2 rounded-lg text-xs text-gray-400 hover:text-gray-200 transition"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={handleSaveSubcategory}
-                      className="bg-[#D84315] hover:bg-[#BF360C] text-white px-5 py-2 rounded-lg text-xs font-semibold transition shadow-md shadow-orange-950"
-                    >
-                      Save to MySQL
-                    </button>
+                    <div className="bg-gradient-to-b from-[#082218] via-[#0A291E] to-[#071D15] p-5 text-center text-xs leading-relaxed max-h-[500px] overflow-y-auto space-y-4">
+                      <div className="flex justify-center pt-1">
+                        <svg className="w-12 h-6 text-[#FFB300] opacity-80" viewBox="0 0 100 40" fill="currentColor">
+                          <path d="M50 0 C40 15, 20 20, 0 20 C20 25, 45 35, 50 40 C55 35, 80 25, 100 20 C80 20, 60 15, 50 0 Z"></path>
+                        </svg>
+                      </div>
+
+                      <div className="space-y-0.5 text-xs font-semibold text-[#FDE68A]">
+                        <p>śrī mahāgaṇādhipatayē namaḥ</p>
+                        <p>śrī gurubhyō namaḥ</p>
+                        <p className="font-bold text-[#FFB300]">hariḥ ōṁ</p>
+                      </div>
+
+                      <div className="border-b border-dotted border-[#D4AF37]/40 w-3/4 mx-auto my-2"></div>
+
+                      <h4 className="text-base font-bold text-[#FFB300] tracking-wide">
+                        {formTitle || 'Master Devotional Category'}
+                      </h4>
+
+                      {formDescription ? (
+                        <div
+                          className="p-3 bg-[#061A13]/90 rounded-xl border border-[#1B563D] text-left text-xs font-serif leading-relaxed text-[#FEF08A] whitespace-pre-wrap max-h-60 overflow-y-auto"
+                          dangerouslySetInnerHTML={{ __html: formDescription }}
+                        />
+                      ) : (
+                        <p className="text-[11px] italic text-emerald-400/60 p-3 bg-[#061A13]/50 rounded-xl border border-dashed border-[#1B563D]">
+                          Enter Category Description on the left to preview...
+                        </p>
+                      )}
+
+                      <div className="flex justify-center pt-2">
+                        <svg className="w-12 h-6 text-[#FFB300] opacity-80 transform rotate-180" viewBox="0 0 100 40" fill="currentColor">
+                          <path d="M50 0 C40 15, 20 20, 0 20 C20 25, 45 35, 50 40 C55 35, 80 25, 100 20 C80 20, 60 15, 50 0 Z"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-4 shadow-xl space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#16422F]">
+                      <h4 className="text-xs font-bold text-[#FFB300] flex items-center gap-1.5">
+                        <Database className="w-3.5 h-3.5 text-[#FFB300]" />
+                        <span>Category Specifications</span>
+                      </h4>
+                      <span className="text-[10px] text-[#FFB300] font-mono font-bold bg-[#061A13] px-2 py-0.5 rounded border border-[#16422F]">
+                        {editingId ? `Editing #${editingId}` : 'New Category'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5 text-xs">
+                      <div className="bg-[#061A13] p-2.5 rounded-lg border border-[#16422F]">
+                        <span className="text-[9px] text-gray-400 uppercase block font-semibold">Content Format</span>
+                        <span className="text-emerald-400 font-medium">{formIsAudio ? '🎵 Audio Track' : '📜 Sacred Text'}</span>
+                      </div>
+                      <div className="bg-[#061A13] p-2.5 rounded-lg border border-[#16422F]">
+                        <span className="text-[9px] text-gray-400 uppercase block font-semibold">URL Identifier</span>
+                        <span className="text-[#FFB300] font-mono truncate block">/{formSlug || 'slug'}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* IN-PAGE NORMAL PAGE MODE: CREATE / EDIT SUBCATEGORY TYPE */}
-          {pageMode === 'EDIT_TYPE' && (
+          {/* IN-PAGE NORMAL PAGE MODE: CREATE / EDIT SUBCATEGORY (SANCTUM GREEN & GOLD LAYOUT MATCHING VIEW DETAILED) */}
+          {pageMode === 'EDIT_SUBCATEGORY' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="bg-[#1C1C1C] rounded-xl border border-[#2C2C2C] p-5 flex items-center justify-between shadow-xl">
+              {/* Header: Sanctum Green & Divine Gold */}
+              <div className="bg-[#071C14] rounded-xl border border-[#1A4E38] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     type="button"
-                    onClick={() => setPageMode('LIST')}
-                    className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-neutral-700 shadow"
+                    onClick={() => {
+                      setPageMode('LIST');
+                      setViewDetail(null);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-[#0D2E21] hover:bg-[#133F2E] text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-[#1E5C41] shadow"
                   >
-                    <ArrowLeft className="w-4 h-4 text-amber-400" />
-                    <span>Back to Types</span>
+                    <ArrowLeft className="w-4 h-4 text-[#FFB300]" />
+                    <span>Back to List</span>
                   </button>
-                  <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-orange-400" />
-                    <span>{editingTypeId ? 'Edit Subcategory Type / Sacred Verse' : 'Create Subcategory Type / Sacred Verse'}</span>
-                  </h3>
+                  <div>
+                    <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-[#FFB300]" />
+                      <span>{editingSubId ? 'Edit Devotional Subcategory Sanctum Details' : 'Create Devotional Subcategory'}</span>
+                    </h3>
+                    <p className="text-xs text-emerald-400/80">
+                      {editingSubId ? `Subcategory Record #${editingSubId} — Live Sanctum Worship Flow` : 'New Sacred Subcategory Record'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Language Selector in Edit Subcategory Mode */}
+                  <div className="flex items-center gap-1.5 p-1 bg-[#061A13] border border-[#1E5C41] rounded-lg shadow-inner">
+                    <Globe className="w-3.5 h-3.5 text-[#FFB300] ml-1.5" />
+                    <span className="text-[11px] font-bold text-gray-300 uppercase px-1">DB Lang:</span>
+                    <div className="flex items-center gap-1 overflow-x-auto">
+                      {languages.map(l => (
+                        <button
+                          key={l.code}
+                          type="button"
+                          onClick={() => handleEditSubcategoryChangeLang(l.code)}
+                          className={`px-2.5 py-1 rounded text-xs font-semibold transition flex items-center gap-1 ${selectedLang === l.code
+                              ? 'bg-[#FFB300] text-[#071C14] font-bold shadow'
+                              : 'text-gray-300 hover:text-[#FFB300] hover:bg-[#0D2E21]'
+                            }`}
+                          title={`Edit ${l.name} (${l.code}) — Dynamically fetched from MySQL via API`}
+                        >
+                          <span>{l.nativeName || l.name}</span>
+                          <span className="text-[10px] opacity-70 uppercase font-mono">({l.code})</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPageMode('LIST');
+                      setViewDetail(null);
+                    }}
+                    className="px-4 py-2 bg-[#0D2E21] hover:bg-[#133F2E] border border-[#1E5C41] rounded-lg text-gray-200 font-semibold text-xs transition"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveSubcategory}
+                    className="flex items-center gap-1.5 px-5 py-2 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] font-bold text-xs rounded-lg transition shadow-lg shadow-amber-500/20"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Save Subcategory to MySQL</span>
+                  </button>
                 </div>
               </div>
 
-              <div className="bg-[#1E1E1E] rounded-xl border border-[#2C2C2C] p-6 shadow-xl space-y-5 text-xs">
-                {/* 1. Cascading Category & Subcategory Assignment */}
-                <div className="bg-[#151515] p-4 rounded-xl border border-[#2A2A2A] space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-[#252525]">
-                    <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <span>📁</span>
-                      <span>Assign Category &amp; Target Subcategory</span>
+              {/* Exact View Detailed 2-Column Grid: Left Sacred Scroll Reader & Right Sanctum Console */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                {/* LEFT: Sacred Devotional Reader (Authentic Green & Gold Scroll) */}
+                <div className="lg:col-span-7 flex flex-col items-center">
+
+                  {/* TYPE TABS / SELECTOR: Allows toggling between All Sacred Types or viewing a specific Type */}
+                  {viewDetail?.contents && viewDetail.contents.length > 0 && (
+                    <div className="w-full mb-4 bg-[#082218] border border-[#1A4E38] rounded-xl p-3 shadow-lg space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#FFB300] uppercase tracking-wider flex items-center gap-1.5">
+                          <span>✨</span>
+                          <span>{subFormTitle || viewDetail.title} Types ({viewDetail.contents.length})</span>
+                        </span>
+                        <span className="text-[11px] text-emerald-400 font-mono">
+                          {activeViewTypeTab === 'all'
+                            ? 'Showing: Complete Chanting Sequence'
+                            : `Showing Type #${(typeof activeViewTypeTab === 'number' ? activeViewTypeTab : 0) + 1} of ${viewDetail.contents.length}`}
+                        </span>
+                      </div>
+
+                      {/* Interactive Horizontal Scrollable Type Cards */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setActiveViewTypeTab('all')}
+                          className={`p-2 rounded-lg text-left transition border flex flex-col justify-between gap-1 ${activeViewTypeTab === 'all'
+                              ? 'bg-[#FFB300] text-[#071C14] border-[#FFB300] font-bold shadow-md'
+                              : 'bg-[#061A13] text-gray-300 border-[#16422F] hover:border-[#FFB300]/50'
+                            }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-[10px] font-mono uppercase">Full Flow</span>
+                            <span className="text-[9px] px-1 rounded bg-black/20">All</span>
+                          </div>
+                          <span className="truncate text-xs font-semibold">All {viewDetail.contents.length} Types</span>
+                        </button>
+
+                        {viewDetail.contents.map((step, idx) => (
+                          <button
+                            key={step.id || idx}
+                            type="button"
+                            onClick={() => setActiveViewTypeTab(idx)}
+                            className={`p-2 rounded-lg text-left transition border flex flex-col justify-between gap-1 ${activeViewTypeTab === idx
+                                ? 'bg-[#FFB300] text-[#071C14] border-[#FFB300] font-bold shadow-md'
+                                : 'bg-[#061A13] text-gray-300 border-[#16422F] hover:border-[#FFB300]/50'
+                              }`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-[10px] font-mono font-bold">#{idx + 1}</span>
+                              <span className="text-[9px] px-1 rounded bg-black/20">Type</span>
+                            </div>
+                            <span className="truncate text-xs font-semibold">{step.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="w-full flex items-center justify-between mb-3 px-1 text-xs">
+                    <span className="font-bold text-[#FFB300] uppercase tracking-wider flex items-center gap-1.5">
+                      <span>📜</span>
+                      <span>Devotional Reader View</span>
+                      <span className="px-1.5 py-0.5 rounded bg-[#061A13] border border-[#16422F] text-[#FEF08A] font-mono text-[10px]">
+                        {languages.find(l => l.code === selectedLang)?.name || selectedLang.toUpperCase()}
+                      </span>
                     </span>
-                    <span className="text-[10px] text-gray-400">
-                      Step 1: Choose Parent Category &rarr; Step 2: Choose Subcategory
+                    <span className="text-[11px] text-emerald-400/90 font-mono">
+                      {viewDetail?.contents && viewDetail.contents.length > 0
+                        ? activeViewTypeTab === 'all'
+                          ? `${viewDetail.contents.length} Ordered Steps`
+                          : `Type #${(typeof activeViewTypeTab === 'number' ? activeViewTypeTab : 0) + 1} / ${viewDetail.contents.length}`
+                        : 'Single Sacred Composition'}
                     </span>
+                  </div>
+
+                  {/* Sacred Scroll Outer Container */}
+                  <div className="w-full max-w-lg rounded-2xl overflow-hidden border-2 border-[#D4AF37]/60 shadow-[0_12px_45px_rgba(0,0,0,0.6),0_0_25px_rgba(212,175,55,0.15)] bg-[#071F17]">
+
+                    {/* Top Sanctum Header */}
+                    <div className="bg-[#0A2A1E] text-[#FFB300] border-b border-[#1E5C41] px-5 py-3 flex items-center justify-between shadow">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🪔</span>
+                        <span className="font-bold text-sm tracking-wide text-[#FFB300] truncate max-w-xs">
+                          {activeViewTypeTab !== 'all' && typeof activeViewTypeTab === 'number' && viewDetail?.contents?.[activeViewTypeTab]
+                            ? viewDetail.contents[activeViewTypeTab].title
+                            : (subFormTitle || viewDetail?.title || 'Subcategory')}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#071C14] border border-[#1E5C41] text-emerald-400">
+                        /{activeViewTypeTab !== 'all' && typeof activeViewTypeTab === 'number' && (viewDetail?.contents?.[activeViewTypeTab] as any)?.slug
+                          ? (viewDetail?.contents?.[activeViewTypeTab] as any).slug
+                          : (subFormSlug || viewDetail?.slug || 'slug')}
+                      </span>
+                    </div>
+
+                    {/* Scroll Canvas with Sanctum Green & Divine Gold Typography */}
+                    <div className="bg-gradient-to-b from-[#082218] via-[#0A291E] to-[#071D15] p-6 text-center text-xs leading-relaxed max-h-[760px] overflow-y-auto space-y-5">
+
+                      {/* Top Sacred Arch Motif in Gold */}
+                      <div className="flex justify-center pt-2">
+                        <svg className="w-16 h-8 text-[#FFB300] opacity-80" viewBox="0 0 100 40" fill="currentColor">
+                          <path d="M50 0 C40 15, 20 20, 0 20 C20 25, 45 35, 50 40 C55 35, 80 25, 100 20 C80 20, 60 15, 50 0 Z"></path>
+                        </svg>
+                      </div>
+
+                      {/* Invocations */}
+                      <div className="space-y-1 text-sm font-semibold text-[#FDE68A]">
+                        <p>śrī mahāgaṇādhipatayē namaḥ</p>
+                        <p>śrī gurubhyō namaḥ</p>
+                        <p className="font-bold text-[#FFB300]">hariḥ ōṁ</p>
+                      </div>
+
+                      <div className="border-b border-dotted border-[#D4AF37]/40 w-3/4 mx-auto my-3"></div>
+
+                      {/* Editable Sacred Notes & Full Lyrics Area */}
+                      <div className="p-3.5 bg-[#061A13]/90 rounded-xl border border-[#1B563D] text-left max-w-md mx-auto space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase text-[#FFB300] tracking-wider block">
+                            Sacred Notes / Procedure Description / Full Lyrics
+                          </span>
+                          <span className="text-[9px] text-emerald-400 font-mono">Editable</span>
+                        </div>
+                        <RichTextEditor
+                          value={subFormDescription}
+                          onChange={(val) => setSubFormDescription(val)}
+                          placeholder="Enter full step-by-step procedure, sankalpam, or chapter text..."
+                          minHeight="140px"
+                          hideTemplateBtn={true}
+                        />
+                      </div>
+
+                      {/* Attached Devotional Types / Verses (Full Flow Chanting Sequence) */}
+                      {viewDetail?.contents && viewDetail.contents.length > 0 && (
+                        <div className="space-y-6 pt-2">
+                          {(activeViewTypeTab === 'all'
+                            ? viewDetail.contents
+                            : [viewDetail.contents[typeof activeViewTypeTab === 'number' ? activeViewTypeTab : 0]]
+                          ).map((v, idx) => (
+                            <div key={v.id || idx} className="space-y-2.5">
+                              <h4 className="text-sm font-bold text-[#FFB300] tracking-wide uppercase flex items-center justify-center gap-1.5">
+                                <span>{v.title}</span>
+                              </h4>
+
+                              {v.sacredText && (
+                                <div className="text-sm font-bold text-[#FEF08A] font-serif leading-relaxed whitespace-pre-wrap max-w-md mx-auto py-1">
+                                  {v.sacredText}
+                                </div>
+                              )}
+
+                              {v.meaning && (
+                                <div className="text-xs italic text-[#A7F3D0] bg-[#061A13]/90 border border-[#1B563D] p-2.5 rounded-lg max-w-md mx-auto text-center leading-relaxed">
+                                  {v.meaning}
+                                </div>
+                              )}
+
+                              {activeViewTypeTab === 'all' && idx < (viewDetail?.contents?.length || 0) - 1 && (
+                                <div className="border-b border-dotted border-[#D4AF37]/35 w-3/4 mx-auto pt-4"></div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Bottom Sacred Lotus Filigree Finish */}
+                      <div className="flex justify-center pt-4">
+                        <svg className="w-16 h-8 text-[#FFB300] opacity-80 transform rotate-180" viewBox="0 0 100 40" fill="currentColor">
+                          <path d="M50 0 C40 15, 20 20, 0 20 C20 25, 45 35, 50 40 C55 35, 80 25, 100 20 C80 20, 60 15, 50 0 Z"></path>
+                        </svg>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+
+                {/* RIGHT: Sanctum Specifications & 4-Cards Console */}
+                <div className="lg:col-span-5 space-y-5">
+
+                  {/* Card 1: Sanctum Specifications */}
+                  <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-5 shadow-xl space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-[#16422F]">
+                      <h3 className="text-sm font-bold text-[#FFB300] flex items-center gap-2">
+                        <Database className="w-4 h-4 text-[#FFB300]" />
+                        <span>Sanctum Specifications</span>
+                      </h3>
+                      <span className="text-xs text-[#FFB300] font-mono font-bold bg-[#061A13] px-2 py-0.5 rounded border border-[#16422F]">
+                        ID: #{editingSubId || 'New'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3 text-xs">
+                      {/* Parent Category & Total Steps */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-[#061A13] p-3 rounded-lg border border-[#16422F]">
+                          <label className="text-[10px] text-gray-400 uppercase block font-semibold mb-1">Parent Category *</label>
+                          <select
+                            value={subFormParentId}
+                            onChange={(e) => setSubFormParentId(Number(e.target.value))}
+                            className="w-full bg-[#071C14] border border-[#1E5C41] rounded px-2.5 py-1.5 text-xs text-[#FEF08A] font-medium focus:outline-none focus:border-[#FFB300]"
+                          >
+                            <option value="">-- Choose Parent --</option>
+                            {parentLookupList.map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.parentId ? `└── ${p.title}` : p.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="bg-[#061A13] p-3 rounded-lg border border-[#16422F]">
+                          <span className="text-[10px] text-gray-400 uppercase block font-semibold mb-1">Total Steps / Types</span>
+                          <span className="text-[#FFB300] font-bold text-xs block pt-1.5">
+                            {viewDetail?.contents?.length || 0} Sacred Steps
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Subcategory Title & URL Identifier */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-[#061A13] p-3 rounded-lg border border-[#16422F]">
+                          <label className="text-[10px] text-gray-400 uppercase block font-semibold mb-1">
+                            Title ({selectedLang.toUpperCase()}) *
+                          </label>
+                          <input
+                            type="text"
+                            value={subFormTitle}
+                            onChange={(e) => setSubFormTitle(e.target.value)}
+                            placeholder="e.g. Ayyappa Pooja Vidhanam"
+                            className="w-full bg-[#071C14] border border-[#1E5C41] rounded px-2.5 py-1.5 text-xs text-gray-100 font-semibold focus:outline-none focus:border-[#FFB300]"
+                          />
+                        </div>
+                        <div className="bg-[#061A13] p-3 rounded-lg border border-[#16422F]">
+                          <label className="text-[10px] text-gray-400 uppercase block font-semibold mb-1">
+                            URL Identifier *
+                          </label>
+                          <input
+                            type="text"
+                            value={subFormSlug}
+                            onChange={(e) => setSubFormSlug(e.target.value)}
+                            placeholder="ayyappa-padi-pooja"
+                            className="w-full bg-[#071C14] border border-[#1E5C41] rounded px-2.5 py-1.5 text-xs text-[#FFB300] font-mono focus:outline-none focus:border-[#FFB300]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Sanctum Artwork */}
+                      <div className="bg-[#061A13] border border-[#16422F] rounded-lg p-3 flex flex-col sm:flex-row items-center gap-3">
+                        <div className="w-14 h-14 rounded-lg overflow-hidden border border-[#D4AF37]/50 flex-shrink-0 bg-neutral-900 flex items-center justify-center">
+                          {subFormImageUrl ? (
+                            <img
+                              src={subFormImageUrl.startsWith('http') || subFormImageUrl.startsWith('data:')
+                                ? subFormImageUrl
+                                : `${API_ORIGIN}${subFormImageUrl.startsWith('/') ? '' : '/'}${subFormImageUrl}`}
+                              alt={subFormTitle}
+                              className="w-full h-full object-cover"
+                              onError={(e: any) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          ) : (
+                            <span className="text-xl">🪔</span>
+                          )}
+                        </div>
+                        <div className="flex-1 w-full space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Sanctum Artwork</span>
+                            <div className="flex items-center gap-1.5">
+                              <label className="px-2 py-0.5 bg-[#0D2E21] hover:bg-[#133F2E] text-[#FFB300] rounded cursor-pointer border border-[#1E5C41] text-[10px] font-semibold flex items-center gap-1">
+                                <Upload className="w-3 h-3" />
+                                <span>Upload</span>
+                                <input type="file" accept="image/*" onChange={handleSubcategoryImageUpload} className="hidden" />
+                              </label>
+                              {subFormImageUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSubFormImageUrl('')}
+                                  className="px-1.5 py-0.5 bg-red-950/40 text-red-400 hover:text-red-300 rounded text-[10px] border border-red-900/30"
+                                >
+                                  Clear
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Artwork URL"
+                            value={subFormImageUrl}
+                            onChange={(e) => setSubFormImageUrl(e.target.value)}
+                            className="w-full bg-[#071C14] border border-[#1E5C41] rounded px-2 py-1 text-[11px] text-gray-300 font-mono placeholder-gray-600 focus:outline-none focus:border-[#FFB300]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Card Bottom Actions */}
+                      <div className="pt-2 flex items-center justify-between gap-2 border-t border-[#16422F]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPageMode('LIST');
+                            setViewDetail(null);
+                          }}
+                          className="px-3.5 py-1.5 bg-[#0D2E21] hover:bg-[#133F2E] border border-[#1E5C41] rounded-lg text-gray-200 text-xs font-semibold transition"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveSubcategory}
+                          className="px-4 py-1.5 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] rounded-lg text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          <span>Save Subcategory to MySQL</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Database Multi-Language Translations */}
+                  <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-5 shadow-xl space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#16422F]">
+                      <span className="text-xs font-bold text-[#FFB300] uppercase tracking-wide">
+                        Database Multi-Language Translations ({viewDetail?.translations?.length || 0})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => openTranslationModal('categories', editingSubId || undefined, [
+                          { key: 'title', label: 'Subcategory Title', value: subFormTitle },
+                          { key: 'description', label: 'Sacred Notes', value: subFormDescription, isHtml: true }
+                        ], (trans, lang) => {
+                          if (trans.title) setSubFormTitle(trans.title);
+                          if (trans.description) setSubFormDescription(trans.description);
+                          if (lang) setSelectedLang(lang);
+                        })}
+                        className="bg-[#FFB300]/15 hover:bg-[#FFB300]/25 text-[#FFB300] border border-[#FFB300]/40 px-2.5 py-1 rounded text-[11px] font-semibold transition flex items-center gap-1"
+                      >
+                        <Sparkles className="w-3 h-3 text-[#FFB300]" />
+                        <span>✨ Translate (v3)</span>
+                      </button>
+                    </div>
+
+                    {viewDetail?.translations && viewDetail.translations.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {viewDetail.translations.map((tr) => (
+                          <div
+                            key={tr.code}
+                            onClick={() => handleEditSubcategoryChangeLang(tr.code)}
+                            className={`p-2.5 rounded-lg border space-y-0.5 cursor-pointer transition ${selectedLang === tr.code
+                                ? 'bg-[#0A3324] border-[#FFB300]'
+                                : 'bg-[#061A13] border-[#16422F] hover:border-[#FFB300]/50'
+                              }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-[#FFB300] uppercase text-[10px]">{tr.name || tr.code}</span>
+                              <span className="font-mono text-gray-500 text-[9px]">{tr.code}</span>
+                            </div>
+                            <div className="font-semibold text-gray-200 text-xs truncate">{tr.title}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-[#061A13] rounded-lg border border-[#16422F] text-center text-xs text-gray-400">
+                        No translations in DB yet. Click &quot;✨ Translate (v3)&quot; above to translate.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card 3: Subcategory Types & Stotras 4-Card Grid (Exact match with View Detailed) */}
+                  {viewDetail?.contents && viewDetail.contents.length > 0 && (
+                    <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-5 shadow-xl space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-[#16422F]">
+                        <span className="text-xs font-bold text-[#FFB300] uppercase tracking-wide flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-[#FFB300]" />
+                          <span>{subFormTitle || viewDetail.title} Types &amp; Stotras ({viewDetail.contents.length})</span>
+                        </span>
+                        <span className="text-[10px] text-emerald-400 font-mono">Select card to view detail</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        {viewDetail.contents.map((typeItem, tIdx) => {
+                          const isSelected = activeViewTypeTab === tIdx;
+                          return (
+                            <div
+                              key={typeItem.id || tIdx}
+                              onClick={() => setActiveViewTypeTab(tIdx)}
+                              className={`rounded-xl border p-3.5 cursor-pointer transition-all transform hover:-translate-y-0.5 shadow-md flex flex-col justify-between gap-3 ${isSelected
+                                  ? 'bg-[#0A3324] border-[#FFB300] shadow-[0_0_15px_rgba(255,179,0,0.2)]'
+                                  : 'bg-[#061A13] border-[#16422F] hover:border-[#FFB300]/60'
+                                }`}
+                            >
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="px-1.5 py-0.5 rounded bg-[#FFB300] text-[#071C14] text-[10px] font-black font-mono">
+                                    #{tIdx + 1}
+                                  </span>
+                                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#0E2F23] border border-[#16422F] text-amber-300 font-medium">
+                                    Devotional Type
+                                  </span>
+                                </div>
+                                <h4 className="font-bold text-xs text-gray-100 line-clamp-1">
+                                  {typeItem.title}
+                                </h4>
+                                <p className="text-[11px] text-gray-400 line-clamp-2 mt-1 leading-snug">
+                                  {typeItem.meaning || typeItem.sacredText || 'Sacred devotional recitation.'}
+                                </p>
+                              </div>
+
+                              <div className="pt-2 border-t border-[#16422F]/60 flex items-center justify-between text-[11px]">
+                                <span className={`font-semibold ${isSelected ? 'text-[#FFB300]' : 'text-emerald-400'}`}>
+                                  {isSelected ? '✓ Viewing' : 'View Detail'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenEditType(typeItem as any);
+                                  }}
+                                  className="px-2 py-0.5 bg-[#0E2F23] hover:bg-[#154634] text-[#FFB300] rounded text-[10px] font-bold border border-[#1E5C41] flex items-center gap-1"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  <span>Edit</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Card 4: Chanting Sequence & Steps (Ordered) */}
+                  <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-5 shadow-xl space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#16422F]">
+                      <span className="text-xs font-bold text-gray-200 uppercase tracking-wide">
+                        Chanting Sequence &amp; Steps
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCreateType(editingSubId || viewDetail?.id)}
+                        className="px-2.5 py-1 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] rounded-lg text-xs font-bold transition flex items-center gap-1 shadow"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Step</span>
+                      </button>
+                    </div>
+
+                    {viewDetail?.contents && viewDetail.contents.length > 0 ? (
+                      <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 text-xs">
+                        {viewDetail.contents.map((step, idx) => (
+                          <div
+                            key={step.id || idx}
+                            className="bg-[#061A13] p-3 rounded-lg border border-[#16422F] hover:border-[#FFB300]/40 transition flex items-center justify-between gap-3 group"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-[#FFB300] font-bold text-[10px]">#{idx + 1}</span>
+                                <span className="font-semibold text-gray-100 truncate">{step.title}</span>
+                              </div>
+                              {step.sacredText && (
+                                <p className="text-gray-400 text-[11px] truncate mt-0.5">{step.sacredText}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditType(step as any)}
+                                className="p-1.5 hover:bg-[#0E2F23] rounded text-[#FFB300] transition"
+                                title="Edit this Step / Verse"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-6 text-center text-xs text-gray-400 bg-[#061A13] rounded-lg border border-[#16422F]">
+                        <BookOpen className="w-6 h-6 mx-auto mb-2 text-[#FFB300] opacity-60" />
+                        <p className="font-semibold text-gray-300">No subcategory types / verses attached yet.</p>
+                        <p className="text-[11px] text-gray-400 mt-1">Click &quot;+ Add Step&quot; above to create worship steps and recitations under this subcategory.</p>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* IN-PAGE NORMAL PAGE MODE: CREATE / EDIT SUBCATEGORY TYPE (SANCTUM GREEN & GOLD LAYOUT MATCHING VIEW DETAILED) */}
+          {pageMode === 'EDIT_TYPE' && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* Header: Sanctum Green & Divine Gold */}
+              <div className="bg-[#071C14] rounded-xl border border-[#1A4E38] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPageMode('LIST')}
+                    className="px-3 py-1.5 rounded-lg bg-[#0D2E21] hover:bg-[#133F2E] text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-[#1E5C41] shadow"
+                  >
+                    <ArrowLeft className="w-4 h-4 text-[#FFB300]" />
+                    <span>Back to Types</span>
+                  </button>
+                  <div>
+                    <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-[#FFB300]" />
+                      <span>{editingTypeId ? 'Edit Subcategory Type / Sacred Verse' : 'Create Subcategory Type / Sacred Verse'}</span>
+                    </h3>
+                    <p className="text-xs text-emerald-400/80">
+                      {editingTypeId ? `Type DB Record #${editingTypeId} — Chanting Verse &amp; Spiritual Meaning` : 'New Sacred Chanting Verse Record'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Language Selector in Edit Type Mode */}
+                  <div className="flex items-center gap-1.5 p-1 bg-[#061A13] border border-[#1E5C41] rounded-lg shadow-inner">
+                    <Globe className="w-3.5 h-3.5 text-[#FFB300] ml-1.5" />
+                    <span className="text-[11px] font-bold text-gray-300 uppercase px-1">Lang:</span>
+                    <div className="flex items-center gap-1 overflow-x-auto">
+                      {languages.map(l => (
+                        <button
+                          key={l.code}
+                          type="button"
+                          onClick={() => handleEditTypeChangeLang(l.code)}
+                          className={`px-2.5 py-1 rounded text-xs font-semibold transition flex items-center gap-1 ${selectedLang === l.code
+                              ? 'bg-[#FFB300] text-[#071C14] font-bold shadow'
+                              : 'text-gray-300 hover:text-[#FFB300] hover:bg-[#0D2E21]'
+                            }`}
+                          title={`Edit ${l.name} (${l.code}) — Dynamically fetched from MySQL via API`}
+                        >
+                          <span>{l.nativeName || l.name}</span>
+                          <span className="text-[10px] opacity-70 uppercase font-mono">({l.code})</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setPageMode('LIST')}
+                    className="px-4 py-2 bg-[#0D2E21] hover:bg-[#133F2E] border border-[#1E5C41] rounded-lg text-gray-200 font-semibold text-xs transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveType}
+                    className="flex items-center gap-1.5 px-5 py-2 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] font-bold text-xs rounded-lg transition shadow-lg shadow-amber-500/20"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Save Type to MySQL</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 2-Column Grid: Left Edit Form & Right Live Devotional Verse Reader Preview */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                {/* LEFT: Sacred Input Form */}
+                <div className="lg:col-span-7 bg-[#082218] rounded-xl border border-[#1A4E38] p-6 shadow-xl space-y-5 text-xs">
+                  {/* Language Status Notice */}
+                  {editingTypeId && !typeFormTitle && (
+                    <div className="p-3 bg-amber-950/40 border border-amber-600/50 rounded-xl flex items-center gap-2 text-xs text-amber-200">
+                      <AlertCircle className="w-4 h-4 text-[#FFB300] flex-shrink-0" />
+                      <span>
+                        No <strong>{languages.find(l => l.code === selectedLang)?.name || selectedLang.toUpperCase()}</strong> translation exists in MariaDB yet. Enter chanting verse &amp; meaning below to create it directly in MySQL.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Cascading Category & Subcategory Assignment */}
+                  <div className="bg-[#061A13] p-4 rounded-xl border border-[#1E5C41] space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#16422F]">
+                      <span className="text-[11px] font-bold text-[#FFB300] uppercase tracking-wider flex items-center gap-1.5">
+                        <span>📁</span>
+                        <span>Assign Category &amp; Target Subcategory</span>
+                      </span>
+                      <span className="text-[10px] text-emerald-400">
+                        Step 1: Parent Category &rarr; Step 2: Subcategory
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Primary Parent Category Selector */}
+                      <div>
+                        <label className="block font-bold text-gray-300 uppercase mb-1 flex items-center justify-between">
+                          <span>1. Parent Category</span>
+                          <span className="text-[10px] text-[#FFB300] font-normal">
+                            ({parentLookupList.length > 0 ? parentLookupList.length : 9} categories)
+                          </span>
+                        </label>
+                        <select
+                          value={typeFormParentId}
+                          onChange={(e) => {
+                            const newParent = e.target.value;
+                            setTypeFormParentId(newParent);
+                            const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
+                            const filtered = newParent === 'all'
+                              ? subPool
+                              : subPool.filter(s => String(s.parentId) === String(newParent) || String(s.parentSlug) === String(newParent));
+                            if (filtered.length > 0) {
+                              if (!filtered.some(s => Number(s.id) === Number(typeFormCategoryId))) {
+                                setTypeFormCategoryId(Number(filtered[0].id));
+                              }
+                            } else {
+                              setTypeFormCategoryId('');
+                            }
+                          }}
+                          className="w-full bg-[#071C14] border border-[#1E5C41] rounded-lg px-3 py-2 text-[#FEF08A] font-medium focus:outline-none focus:border-[#FFB300]"
+                        >
+                          <option value="all">-- All Parent Categories ({parentLookupList.length > 0 ? parentLookupList.length : 9}) --</option>
+                          {parentLookupList.map(p => (
+                            <option key={p.id} value={p.id}>
+                              {p.title} ({p.subcategoriesCount ?? 0} subcategories)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Target Subcategory Selector */}
+                      <div>
+                        <label className="block font-bold text-gray-300 uppercase mb-1 flex items-center justify-between">
+                          <span>2. Target Subcategory *</span>
+                          <span className="text-[10px] text-gray-400 font-normal">
+                            {(() => {
+                              const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
+                              const count = typeFormParentId === 'all'
+                                ? subPool.length
+                                : subPool.filter(s => String(s.parentId) === String(typeFormParentId) || String(s.parentSlug) === String(typeFormParentId)).length;
+                              return `(${count} available)`;
+                            })()}
+                          </span>
+                        </label>
+                        <select
+                          value={typeFormCategoryId}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setTypeFormCategoryId(val || '');
+                            if (val) {
+                              const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
+                              const match = subPool.find(s => Number(s.id) === val);
+                              if (match && match.parentId) {
+                                setTypeFormParentId(match.parentId);
+                              }
+                            }
+                          }}
+                          className="w-full bg-[#071C14] border border-[#1E5C41] rounded-lg px-3 py-2 text-[#FEF08A] font-medium focus:outline-none focus:border-[#FFB300]"
+                        >
+                          <option value="">-- Choose Subcategory (e.g. Ayyappa Pooja, Ganapati Pooja) --</option>
+                          {(() => {
+                            const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
+                            const filtered = typeFormParentId === 'all'
+                              ? subPool
+                              : subPool.filter(s => String(s.parentId) === String(typeFormParentId) || String(s.parentSlug) === String(typeFormParentId));
+                            return filtered.map(s => (
+                              <option key={s.id} value={s.id}>
+                                {s.parentTitle ? `${s.parentTitle} ➔ ` : ''}{s.title} (#{s.id})
+                              </option>
+                            ));
+                          })()}
+                        </select>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Primary Parent Category Selector */}
                     <div>
-                      <label className="block font-semibold text-gray-300 uppercase mb-1 flex items-center justify-between">
-                        <span>1. Parent Category</span>
-                        <span className="text-[10px] text-amber-400 font-normal">
-                          ({parentLookupList.length > 0 ? parentLookupList.length : 9} categories)
-                        </span>
+                      <label className="block font-bold text-gray-300 uppercase mb-1">
+                        Type / Verse Title *
                       </label>
-                      <select 
-                        value={typeFormParentId}
-                        onChange={(e) => {
-                          const newParent = e.target.value;
-                          setTypeFormParentId(newParent);
-                          const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
-                          const filtered = newParent === 'all' 
-                            ? subPool 
-                            : subPool.filter(s => String(s.parentId) === String(newParent) || String(s.parentSlug) === String(newParent));
-                          if (filtered.length > 0) {
-                            if (!filtered.some(s => Number(s.id) === Number(typeFormCategoryId))) {
-                              setTypeFormCategoryId(Number(filtered[0].id));
-                            }
-                          } else {
-                            setTypeFormCategoryId('');
-                          }
-                        }}
-                        className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-amber-300 focus:outline-none focus:border-[#FFB300]"
-                      >
-                        <option value="all">-- All Parent Categories ({parentLookupList.length > 0 ? parentLookupList.length : 9}) --</option>
-                        {parentLookupList.map(p => (
-                          <option key={p.id} value={p.id}>
-                            {p.title} ({p.subcategoriesCount ?? 0} subcategories)
-                          </option>
-                        ))}
-                      </select>
+                      <input
+                        type="text"
+                        value={typeFormTitle}
+                        onChange={(e) => setTypeFormTitle(e.target.value)}
+                        placeholder="e.g. ధ్యానం / Dhyanam / Sri Rudram"
+                        className="w-full bg-[#061A13] border border-[#1E5C41] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
+                      />
                     </div>
 
-                    {/* Target Subcategory Selector */}
                     <div>
-                      <label className="block font-semibold text-gray-300 uppercase mb-1 flex items-center justify-between">
-                        <span>2. Target Subcategory *</span>
-                        <span className="text-[10px] text-gray-400 font-normal">
+                      <label className="block font-bold text-gray-300 uppercase mb-1">
+                        URL Identifier (Slug) *
+                      </label>
+                      <input
+                        type="text"
+                        value={typeFormSlug}
+                        onChange={(e) => setTypeFormSlug(e.target.value)}
+                        placeholder="e.g. dhyanam-mantra"
+                        className="w-full bg-[#061A13] border border-[#1E5C41] rounded-lg px-3 py-2 text-[#FFB300] font-mono focus:outline-none focus:border-[#FFB300]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#FFB300] uppercase mb-1">
+                      Sacred Chanting / Sanskrit / Telugu Mantras (Recitation Text)
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={typeFormSacredText}
+                      onChange={(e) => setTypeFormSacredText(e.target.value)}
+                      placeholder="ఓం శ్రీ స్వామియే శరణం అయ్యప్ప..."
+                      className="w-full bg-[#061A13] border border-[#1E5C41] rounded-lg p-3 text-[#FEF08A] font-serif leading-relaxed text-xs focus:outline-none focus:border-[#FFB300]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-emerald-400 uppercase mb-1">
+                      Spiritual Meaning / Ritual Commentary / Benefits
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={typeFormMeaning}
+                      onChange={(e) => setTypeFormMeaning(e.target.value)}
+                      placeholder="Enter the spiritual meaning and significance of this ritual step..."
+                      className="w-full bg-[#061A13] border border-[#1E5C41] rounded-lg p-3 text-emerald-200 text-xs focus:outline-none focus:border-[#FFB300]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold text-gray-300 uppercase mb-1">Display Order</label>
+                      <input
+                        type="number"
+                        value={typeFormDisplayOrder}
+                        onChange={(e) => setTypeFormDisplayOrder(Number(e.target.value))}
+                        className="w-full bg-[#061A13] border border-[#1E5C41] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 pt-6">
+                      <input
+                        type="checkbox"
+                        id="typeFormPublished"
+                        checked={typeFormIsPublished}
+                        onChange={(e) => setTypeFormIsPublished(e.target.checked)}
+                        className="w-4 h-4 rounded bg-[#061A13] border-[#1E5C41] text-[#FFB300] focus:ring-[#FFB300]"
+                      />
+                      <label htmlFor="typeFormPublished" className="text-gray-300 font-semibold cursor-pointer">
+                        Published and Active in Devotional App
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#1E5C41]">
+                    <button
+                      type="button"
+                      onClick={() => openTranslationModal('devotional_contents', editingTypeId || undefined, [
+                        { key: 'title', label: 'Type Title', value: typeFormTitle },
+                        { key: 'sacredText', label: 'Sacred Chant', value: typeFormSacredText },
+                        { key: 'meaning', label: 'Meaning', value: typeFormMeaning }
+                      ], (trans) => {
+                        if (trans.title) setTypeFormTitle(trans.title);
+                        if (trans.sacredText) setTypeFormSacredText(trans.sacredText);
+                        if (trans.meaning) setTypeFormMeaning(trans.meaning);
+                      })}
+                      className="bg-[#FFB300]/15 hover:bg-[#FFB300]/25 text-[#FFB300] border border-[#FFB300]/40 px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-[#FFB300]" />
+                      <span>✨ Translate (v3)</span>
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPageMode('LIST')}
+                        className="px-4 py-2 bg-[#0D2E21] hover:bg-[#133F2E] border border-[#1E5C41] rounded-lg text-gray-200 text-xs font-semibold transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveType}
+                        className="bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] px-5 py-2 rounded-lg text-xs font-bold transition shadow-lg shadow-amber-500/20"
+                      >
+                        Save Type to MySQL
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* RIGHT: Live Devotional Verse Reader Preview */}
+                <div className="lg:col-span-5 space-y-5">
+                  <div className="flex items-center justify-between px-1 text-xs">
+                    <span className="font-bold text-[#FFB300] uppercase tracking-wider flex items-center gap-1.5">
+                      <span>📜</span>
+                      <span>Devotional Verse Preview</span>
+                    </span>
+                    <span className="text-[11px] text-emerald-400 font-mono">Live Worship Card</span>
+                  </div>
+
+                  {/* Sacred Scroll Outer Container */}
+                  <div className="w-full rounded-2xl overflow-hidden border-2 border-[#D4AF37]/60 shadow-[0_12px_45px_rgba(0,0,0,0.6),0_0_25px_rgba(212,175,55,0.15)] bg-[#071F17]">
+
+                    {/* Header */}
+                    <div className="bg-[#0A2A1E] text-[#FFB300] border-b border-[#1E5C41] px-4 py-2.5 flex items-center justify-between shadow">
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="text-base">🪔</span>
+                        <span className="font-bold text-xs tracking-wide text-[#FFB300] truncate">
+                          {typeFormTitle || 'Verse / Step Title'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#071C14] border border-[#1E5C41] text-emerald-400">
+                        /{typeFormSlug || 'slug'}
+                      </span>
+                    </div>
+
+                    {/* Scroll Canvas with Sacred Text & Meaning */}
+                    <div className="bg-gradient-to-b from-[#082218] via-[#0A291E] to-[#071D15] p-5 text-center text-xs leading-relaxed max-h-[500px] overflow-y-auto space-y-4">
+
+                      {/* Top Sacred Arch */}
+                      <div className="flex justify-center pt-1">
+                        <svg className="w-12 h-6 text-[#FFB300] opacity-80" viewBox="0 0 100 40" fill="currentColor">
+                          <path d="M50 0 C40 15, 20 20, 0 20 C20 25, 45 35, 50 40 C55 35, 80 25, 100 20 C80 20, 60 15, 50 0 Z"></path>
+                        </svg>
+                      </div>
+
+                      <div className="space-y-0.5 text-xs font-semibold text-[#FDE68A]">
+                        <p>śrī mahāgaṇādhipatayē namaḥ</p>
+                        <p>śrī gurubhyō namaḥ</p>
+                        <p className="font-bold text-[#FFB300]">hariḥ ōṁ</p>
+                      </div>
+
+                      <div className="border-b border-dotted border-[#D4AF37]/40 w-3/4 mx-auto my-2"></div>
+
+                      {/* Step Title in Radiant Gold */}
+                      <h4 className="text-sm font-bold text-[#FFB300] tracking-wide uppercase">
+                        {typeFormTitle || 'Type / Verse Title'}
+                      </h4>
+
+                      {/* Sacred Chanting Verses */}
+                      {typeFormSacredText ? (
+                        <div className="text-sm font-bold text-[#FEF08A] font-serif leading-relaxed whitespace-pre-wrap max-w-md mx-auto py-2 p-3 bg-[#061A13]/70 rounded-xl border border-[#1B563D]">
+                          {typeFormSacredText}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] italic text-emerald-400/60 p-3 bg-[#061A13]/50 rounded-xl border border-dashed border-[#1B563D]">
+                          Enter Sacred Sanskrit / Telugu Chant on the left to see live chanting preview...
+                        </p>
+                      )}
+
+                      {/* Ritual Meaning in Sage Green Box */}
+                      {typeFormMeaning ? (
+                        <div className="text-xs italic text-[#A7F3D0] bg-[#061A13]/90 border border-[#1B563D] p-3 rounded-lg max-w-md mx-auto text-center leading-relaxed">
+                          {typeFormMeaning}
+                        </div>
+                      ) : null}
+
+                      {/* Bottom Sacred Lotus */}
+                      <div className="flex justify-center pt-2">
+                        <svg className="w-12 h-6 text-[#FFB300] opacity-80 transform rotate-180" viewBox="0 0 100 40" fill="currentColor">
+                          <path d="M50 0 C40 15, 20 20, 0 20 C20 25, 45 35, 50 40 C55 35, 80 25, 100 20 C80 20, 60 15, 50 0 Z"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Specifications Card */}
+                  <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-4 shadow-xl space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#16422F]">
+                      <h4 className="text-xs font-bold text-[#FFB300] flex items-center gap-1.5">
+                        <Database className="w-3.5 h-3.5 text-[#FFB300]" />
+                        <span>Type Attributes</span>
+                      </h4>
+                      <span className="text-[10px] text-[#FFB300] font-mono font-bold bg-[#061A13] px-2 py-0.5 rounded border border-[#16422F]">
+                        {editingTypeId ? `Editing #${editingTypeId}` : 'New Record'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5 text-xs">
+                      <div className="bg-[#061A13] p-2.5 rounded-lg border border-[#16422F]">
+                        <span className="text-[9px] text-gray-400 uppercase block font-semibold">Target Subcategory</span>
+                        <span className="text-[#FEF08A] font-medium truncate block">
                           {(() => {
                             const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
-                            const count = typeFormParentId === 'all' 
-                              ? subPool.length 
-                              : subPool.filter(s => String(s.parentId) === String(typeFormParentId) || String(s.parentSlug) === String(typeFormParentId)).length;
-                            return `(${count} available)`;
+                            const match = subPool.find(s => Number(s.id) === Number(typeFormCategoryId));
+                            return match ? match.title : 'Not Assigned';
                           })()}
                         </span>
-                      </label>
-                      <select 
-                        value={typeFormCategoryId}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setTypeFormCategoryId(val || '');
-                          if (val) {
-                            const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
-                            const match = subPool.find(s => Number(s.id) === val);
-                            if (match && match.parentId) {
-                              setTypeFormParentId(match.parentId);
-                            }
-                          }
-                        }}
-                        className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-amber-300 focus:outline-none focus:border-[#FFB300]"
-                      >
-                        <option value="">-- Choose Subcategory (e.g. Ayyappa Pooja, Ganapati Pooja, etc.) --</option>
-                        {(() => {
-                          const subPool = allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories;
-                          const filtered = typeFormParentId === 'all'
-                            ? subPool
-                            : subPool.filter(s => String(s.parentId) === String(typeFormParentId) || String(s.parentSlug) === String(typeFormParentId));
-                          return filtered.map(s => (
-                            <option key={s.id} value={s.id}>
-                              {s.parentTitle ? `${s.parentTitle} ➔ ` : ''}{s.title} (#{s.id})
-                            </option>
-                          ));
-                        })()}
-                      </select>
+                      </div>
+                      <div className="bg-[#061A13] p-2.5 rounded-lg border border-[#16422F]">
+                        <span className="text-[9px] text-gray-400 uppercase block font-semibold">Display Order</span>
+                        <span className="text-[#FFB300] font-bold block">Step #{typeFormDisplayOrder || 1}</span>
+                      </div>
+                      <div className="bg-[#061A13] p-2.5 rounded-lg border border-[#16422F]">
+                        <span className="text-[9px] text-gray-400 uppercase block font-semibold">URL Identifier</span>
+                        <span className="text-[#FFB300] font-mono truncate block">/{typeFormSlug || 'slug'}</span>
+                      </div>
+                      <div className="bg-[#061A13] p-2.5 rounded-lg border border-[#16422F]">
+                        <span className="text-[9px] text-gray-400 uppercase block font-semibold">Status</span>
+                        <span className={`font-semibold block ${typeFormIsPublished ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {typeFormIsPublished ? '✓ Published' : 'Draft'}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-semibold text-gray-300 uppercase mb-1">
-                      Type / Verse Title
-                    </label>
-                    <input 
-                      type="text"
-                      value={typeFormTitle}
-                      onChange={(e) => setTypeFormTitle(e.target.value)}
-                      placeholder="e.g. ధ్యానం / Dhyanam / Sri Rudram"
-                      className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-gray-300 uppercase mb-1">
-                      URL Identifier (Slug)
-                    </label>
-                    <input 
-                      type="text"
-                      value={typeFormSlug}
-                      onChange={(e) => setTypeFormSlug(e.target.value)}
-                      placeholder="e.g. dhyanam-mantra"
-                      className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-amber-300 uppercase mb-1">
-                    Sacred Chanting / Sanskrit / Telugu Mantras (Recitation Text)
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={typeFormSacredText}
-                    onChange={(e) => setTypeFormSacredText(e.target.value)}
-                    placeholder="ఓం శ్రీ స్వామియే శరణం అయ్యప్ప..."
-                    className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg p-3 text-amber-200 font-serif leading-relaxed text-xs focus:outline-none focus:border-[#FFB300]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-emerald-300 uppercase mb-1">
-                    Spiritual Meaning / Ritual Commentary / Benefits
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={typeFormMeaning}
-                    onChange={(e) => setTypeFormMeaning(e.target.value)}
-                    placeholder="Enter the spiritual meaning and significance of this ritual step..."
-                    className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg p-3 text-gray-200 text-xs focus:outline-none focus:border-[#FFB300]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-semibold text-gray-300 uppercase mb-1">Display Order</label>
-                    <input 
-                      type="number"
-                      value={typeFormDisplayOrder}
-                      onChange={(e) => setTypeFormDisplayOrder(Number(e.target.value))}
-                      className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 pt-6">
-                    <input 
-                      type="checkbox"
-                      id="typeFormPublished"
-                      checked={typeFormIsPublished}
-                      onChange={(e) => setTypeFormIsPublished(e.target.checked)}
-                      className="w-4 h-4 rounded bg-[#121212] border-[#2C2C2C] text-amber-500 focus:ring-amber-500"
-                    />
-                    <label htmlFor="typeFormPublished" className="text-gray-300 font-semibold cursor-pointer">
-                      Published and Active in Devotional App
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#2C2C2C]">
-                  <button 
-                    type="button"
-                    onClick={() => openTranslationModal('devotional_contents', editingTypeId || undefined, [
-                      { key: 'title', label: 'Type Title', value: typeFormTitle },
-                      { key: 'sacredText', label: 'Sacred Chant', value: typeFormSacredText },
-                      { key: 'meaning', label: 'Meaning', value: typeFormMeaning }
-                    ], (trans) => {
-                      if (trans.title) setTypeFormTitle(trans.title);
-                      if (trans.sacredText) setTypeFormSacredText(trans.sacredText);
-                      if (trans.meaning) setTypeFormMeaning(trans.meaning);
-                    })}
-                    className="bg-amber-600/20 hover:bg-amber-600/40 text-amber-300 border border-amber-500/40 px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>✨ Translate (v3)</span>
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <button 
-                      type="button"
-                      onClick={() => setPageMode('LIST')}
-                      className="px-4 py-2 rounded-lg text-xs text-gray-400 hover:text-gray-200 transition"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={handleSaveType}
-                      className="bg-[#D84315] hover:bg-[#BF360C] text-white px-5 py-2 rounded-lg text-xs font-semibold transition shadow-md shadow-orange-950"
-                    >
-                      Save Type to MySQL
-                    </button>
                   </div>
                 </div>
               </div>
@@ -5844,16 +6977,16 @@ export default function EnterpriseSuperAdminDashboard() {
                     <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                       <div className="relative w-full sm:w-64">
                         <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
-                        <input 
-                          type="text" 
-                          placeholder="Server Search..." 
+                        <input
+                          type="text"
+                          placeholder="Server Search..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           className="w-full bg-[#141414] border border-[#2C2C2C] rounded-lg pl-9 pr-4 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-[#FFB300]"
                         />
                       </div>
 
-                      <select 
+                      <select
                         value={selectedLang}
                         onChange={(e) => setSelectedLang(e.target.value)}
                         className="bg-[#141414] border border-[#2C2C2C] rounded-lg px-3 py-2 text-xs text-amber-400 focus:outline-none focus:border-[#FFB300]"
@@ -5865,7 +6998,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         <option value="hi">Hindi (हिन्दी)</option>
                       </select>
 
-                      <select 
+                      <select
                         value={isAudioFilter}
                         onChange={(e) => setIsAudioFilter(e.target.value)}
                         className="bg-[#141414] border border-[#2C2C2C] rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-[#FFB300]"
@@ -5880,7 +7013,7 @@ export default function EnterpriseSuperAdminDashboard() {
                       <span className="text-xs text-gray-400">
                         Total: <strong className="text-gray-200">{totalCount}</strong> categories
                       </span>
-                      <button 
+                      <button
                         onClick={handleOpenCreateCategory}
                         className="flex items-center justify-center gap-2 bg-[#D84315] hover:bg-[#BF360C] text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-md shadow-orange-950"
                       >
@@ -5964,108 +7097,108 @@ export default function EnterpriseSuperAdminDashboard() {
                             categories.map((item) => {
                               const catImg = item.imageUrl || item.artwork || '';
                               return (
-                              <tr key={item.id} className="hover:bg-neutral-800/40 transition">
-                                <td className="px-4 py-4 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedCategoryIds.includes(String(item.id))}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedCategoryIds(prev => [...prev, String(item.id)]);
-                                      } else {
-                                        setSelectedCategoryIds(prev => prev.filter(id => id !== String(item.id)));
-                                      }
-                                    }}
-                                    className="rounded bg-[#121212] border-[#3A3A3A] text-amber-500 focus:ring-amber-500 cursor-pointer"
-                                  />
-                                </td>
-                                <td className="px-3 py-4 text-center">
-                                  <div className="w-10 h-10 rounded-lg bg-[#141414] border border-[#2C2C2C] overflow-hidden flex items-center justify-center mx-auto">
-                                    {catImg ? (
-                                      <img
-                                        src={catImg.startsWith('http') ? catImg : `${API_ORIGIN}${catImg.startsWith('/') ? '' : '/'}${catImg}`}
-                                        alt={item.title}
-                                        className="w-full h-full object-contain p-1"
-                                        onError={(e: any) => {
-                                          e.currentTarget.style.display = 'none';
-                                          if (e.currentTarget.parentElement) {
-                                            e.currentTarget.parentElement.innerHTML = '<span class="text-xs">🪔</span>';
-                                          }
-                                        }}
-                                      />
-                                    ) : (
-                                      <span className="text-xs">🪔</span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-4 font-mono text-gray-500">#{item.id}</td>
-                                <td className="px-6 py-4">
-                                  <div className="font-semibold text-gray-100 flex items-center gap-2">
-                                    <span className="text-orange-400">🪔</span>
-                                    <span>{item.title}</span>
-                                  </div>
-                                  <div className="font-mono text-[11px] text-amber-400/90 mt-0.5">/{item.slug}</div>
-                                  {(item.subtitle || item.description) && (
-                                    <div className="text-[11px] text-gray-400 truncate max-w-sm mt-0.5" title={item.subtitle || item.description}>
-                                      {item.subtitle || item.description}
+                                <tr key={item.id} className="hover:bg-neutral-800/40 transition">
+                                  <td className="px-4 py-4 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedCategoryIds.includes(String(item.id))}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedCategoryIds(prev => [...prev, String(item.id)]);
+                                        } else {
+                                          setSelectedCategoryIds(prev => prev.filter(id => id !== String(item.id)));
+                                        }
+                                      }}
+                                      className="rounded bg-[#121212] border-[#3A3A3A] text-amber-500 focus:ring-amber-500 cursor-pointer"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-4 text-center">
+                                    <div className="w-10 h-10 rounded-lg bg-[#141414] border border-[#2C2C2C] overflow-hidden flex items-center justify-center mx-auto">
+                                      {catImg ? (
+                                        <img
+                                          src={catImg.startsWith('http') ? catImg : `${API_ORIGIN}${catImg.startsWith('/') ? '' : '/'}${catImg}`}
+                                          alt={item.title}
+                                          className="w-full h-full object-contain p-1"
+                                          onError={(e: any) => {
+                                            e.currentTarget.style.display = 'none';
+                                            if (e.currentTarget.parentElement) {
+                                              e.currentTarget.parentElement.innerHTML = '<span class="text-xs">🪔</span>';
+                                            }
+                                          }}
+                                        />
+                                      ) : (
+                                        <span className="text-xs">🪔</span>
+                                      )}
                                     </div>
-                                  )}
-                                </td>
-                                <td className="px-6 py-4 font-mono text-amber-400/90">{item.slug}</td>
-                                <td className="px-6 py-4">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedParentCategoryFilter(String(item.id));
-                                      setActiveTab('subcategories');
-                                      setPageMode('LIST');
-                                      loadSubcategories(1, '', selectedLang, String(item.id));
-                                    }}
-                                    className="px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold transition flex items-center gap-1.5"
-                                    title="View subcategories under this category"
-                                  >
-                                    <Layers className="w-3.5 h-3.5" />
-                                    <span>{item.subcategoriesCount || 0} subcategories</span>
-                                  </button>
-                                </td>
-                                <td className="px-6 py-4">
-                                  {item.isAudio ? (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                                      <Music className="w-3 h-3" /> Audio Track
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/30">
-                                      <BookOpen className="w-3 h-3" /> Slokas & Mantras
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-6 py-4 text-center space-x-2 whitespace-nowrap">
-                                <button 
-                                  onClick={() => handleOpenViewCategory(item.id)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded text-sky-400 text-xs font-semibold transition"
-                                  title="View Category Details"
-                                >
-                                  <Eye className="w-3.5 h-3.5" />
-                                  <span>View</span>
-                                </button>
-                                <button 
-                                  onClick={() => handleOpenEditCategory(item)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded text-amber-400 text-xs font-semibold transition"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                  <span>Edit</span>
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteCategory(item.id, item.title)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 rounded text-red-400 text-xs font-semibold transition"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  <span>Delete</span>
-                                </button>
-                              </td>
-                            </tr>
-                            );
-                          }))}
+                                  </td>
+                                  <td className="px-4 py-4 font-mono text-gray-500">#{item.id}</td>
+                                  <td className="px-6 py-4">
+                                    <div className="font-semibold text-gray-100 flex items-center gap-2">
+                                      <span className="text-orange-400">🪔</span>
+                                      <span>{item.title}</span>
+                                    </div>
+                                    <div className="font-mono text-[11px] text-amber-400/90 mt-0.5">/{item.slug}</div>
+                                    {(item.subtitle || item.description) && (
+                                      <div className="text-[11px] text-gray-400 truncate max-w-sm mt-0.5" title={item.subtitle || item.description}>
+                                        {item.subtitle || item.description}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="px-6 py-4 font-mono text-amber-400/90">{item.slug}</td>
+                                  <td className="px-6 py-4">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedParentCategoryFilter(String(item.id));
+                                        setActiveTab('subcategories');
+                                        setPageMode('LIST');
+                                        loadSubcategories(1, '', selectedLang, String(item.id));
+                                      }}
+                                      className="px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold transition flex items-center gap-1.5"
+                                      title="View subcategories under this category"
+                                    >
+                                      <Layers className="w-3.5 h-3.5" />
+                                      <span>{item.subcategoriesCount || 0} subcategories</span>
+                                    </button>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    {item.isAudio ? (
+                                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                                        <Music className="w-3 h-3" /> Audio Track
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                                        <BookOpen className="w-3 h-3" /> Slokas & Mantras
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="px-6 py-4 text-center space-x-2 whitespace-nowrap">
+                                    <button
+                                      onClick={() => handleOpenViewCategory(item.id)}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded text-sky-400 text-xs font-semibold transition"
+                                      title="View Category Details"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                      <span>View</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleOpenEditCategory(item)}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded text-amber-400 text-xs font-semibold transition"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5" />
+                                      <span>Edit</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteCategory(item.id, item.title)}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 rounded text-red-400 text-xs font-semibold transition"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <span>Delete</span>
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            }))}
                         </tbody>
                       </table>
                     )}
@@ -6097,7 +7230,7 @@ export default function EnterpriseSuperAdminDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button 
+                      <button
                         disabled={page <= 1}
                         onClick={() => loadCategories(page - 1, searchQuery, selectedLang, isAudioFilter)}
                         className="px-3 py-1.5 bg-[#1E1E1E] border border-[#2C2C2C] rounded-lg disabled:opacity-40 hover:bg-neutral-800 text-xs text-gray-300 transition flex items-center gap-1"
@@ -6106,7 +7239,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         <span>Prev</span>
                       </button>
                       <span className="text-xs font-semibold px-2 text-amber-400">{page} / {totalPages}</span>
-                      <button 
+                      <button
                         disabled={page >= totalPages}
                         onClick={() => loadCategories(page + 1, searchQuery, selectedLang, isAudioFilter)}
                         className="px-3 py-1.5 bg-[#1E1E1E] border border-[#2C2C2C] rounded-lg disabled:opacity-40 hover:bg-neutral-800 text-xs text-gray-300 transition flex items-center gap-1"
@@ -6135,7 +7268,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         </p>
                       </div>
                       <div className="flex items-center gap-3 w-full md:w-auto">
-                        <select 
+                        <select
                           value={selectedLang}
                           onChange={(e) => {
                             setSelectedLang(e.target.value);
@@ -6150,7 +7283,7 @@ export default function EnterpriseSuperAdminDashboard() {
                           <option value="ta">Tamil (தமிழ்)</option>
                           <option value="hi">Hindi (हिन्दी)</option>
                         </select>
-                        <button 
+                        <button
                           onClick={() => handleOpenCreateSubcategory(selectedParentCategoryFilter !== 'all' ? selectedParentCategoryFilter : undefined)}
                           className="flex items-center justify-center gap-2 bg-[#D84315] hover:bg-[#BF360C] text-white px-4 py-1.5 rounded-lg text-xs font-bold transition shadow-md shadow-orange-950 flex-shrink-0"
                         >
@@ -6173,11 +7306,10 @@ export default function EnterpriseSuperAdminDashboard() {
                             setSelectedParentCategoryFilter('all');
                             loadSubcategories(1, searchQuery, selectedLang, 'all');
                           }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                            selectedParentCategoryFilter === 'all'
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${selectedParentCategoryFilter === 'all'
                               ? 'bg-[#FFB300] text-black shadow-lg shadow-amber-500/20 font-bold'
                               : 'bg-[#141414] text-gray-300 hover:text-white border border-[#2C2C2C]'
-                          }`}
+                            }`}
                         >
                           <span>All Categories</span>
                           <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${selectedParentCategoryFilter === 'all' ? 'bg-black/30 text-black' : 'bg-neutral-800 text-gray-400'}`}>
@@ -6225,11 +7357,10 @@ export default function EnterpriseSuperAdminDashboard() {
                                 setSelectedParentCategoryFilter(targetId);
                                 loadSubcategories(1, searchQuery, selectedLang, targetId);
                               }}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                                isSelected
+                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${isSelected
                                   ? 'bg-[#FFB300] text-black shadow-lg shadow-amber-500/20 font-bold'
                                   : 'bg-[#141414] text-gray-300 hover:text-white border border-[#2C2C2C]'
-                              }`}
+                                }`}
                             >
                               <span>{cat.icon}</span>
                               <span>{cat.name}</span>
@@ -6252,10 +7383,10 @@ export default function EnterpriseSuperAdminDashboard() {
                           {selectedParentCategoryFilter === 'all'
                             ? `All Subcategories in System (${subTotalCount || subcategories.length})`
                             : (() => {
-                                const foundParent = parentLookupList.find(p => String(p.id) === String(selectedParentCategoryFilter) || p.slug === selectedParentCategoryFilter);
-                                const title = foundParent?.title || (selectedParentCategoryFilter === '113' || selectedParentCategoryFilter === 'pooja' ? 'Pooja Vidhanam' : selectedParentCategoryFilter);
-                                return `Subcategories under "${title.toUpperCase()}" (${subTotalCount || subcategories.length})`;
-                              })()}
+                              const foundParent = parentLookupList.find(p => String(p.id) === String(selectedParentCategoryFilter) || p.slug === selectedParentCategoryFilter);
+                              const title = foundParent?.title || (selectedParentCategoryFilter === '113' || selectedParentCategoryFilter === 'pooja' ? 'Pooja Vidhanam' : selectedParentCategoryFilter);
+                              return `Subcategories under "${title.toUpperCase()}" (${subTotalCount || subcategories.length})`;
+                            })()}
                         </span>
                       </span>
                       <button
@@ -6422,11 +7553,10 @@ export default function EnterpriseSuperAdminDashboard() {
                                     </td>
 
                                     <td className="px-5 py-3 whitespace-nowrap">
-                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                        sub.isAudio
+                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${sub.isAudio
                                           ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
                                           : 'bg-sky-500/10 text-sky-400 border border-sky-500/30'
-                                      }`}>
+                                        }`}>
                                         {sub.isAudio ? '🎵 Audio Track' : '📜 Vidhanam / Stotra'}
                                       </span>
                                     </td>
@@ -6451,21 +7581,21 @@ export default function EnterpriseSuperAdminDashboard() {
                                           <BookOpen className="w-3.5 h-3.5" />
                                           <span className="text-[11px] font-semibold">Types</span>
                                         </button>
-                                        <button 
+                                        <button
                                           onClick={() => handleOpenViewSubcategory(sub.id)}
                                           className="p-1.5 bg-[#252525] hover:bg-[#303030] border border-[#3A3A3A] rounded text-sky-400 transition"
                                           title="View Subcategory Details"
                                         >
                                           <Eye className="w-3.5 h-3.5" />
                                         </button>
-                                        <button 
+                                        <button
                                           onClick={() => handleOpenEditSubcategory(sub)}
                                           className="p-1.5 bg-[#252525] hover:bg-[#303030] border border-[#3A3A3A] rounded text-amber-400 transition"
                                           title="Edit Subcategory"
                                         >
                                           <Edit3 className="w-3.5 h-3.5" />
                                         </button>
-                                        <button 
+                                        <button
                                           onClick={() => handleDeleteSubcategory(sub.id, sub.title)}
                                           className="p-1.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 rounded text-red-400 transition"
                                           title="Delete Subcategory"
@@ -6510,7 +7640,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button 
+                        <button
                           disabled={subPage <= 1}
                           onClick={() => loadSubcategories(subPage - 1, searchQuery, selectedLang, selectedParentCategoryFilter, subLimit)}
                           className="px-3 py-1.5 bg-[#1E1E1E] border border-[#2C2C2C] rounded-lg disabled:opacity-40 hover:bg-neutral-800 text-xs text-gray-300 transition flex items-center gap-1"
@@ -6519,7 +7649,7 @@ export default function EnterpriseSuperAdminDashboard() {
                           <span>Prev</span>
                         </button>
                         <span className="text-xs font-semibold px-2 text-amber-400">{subPage} / {subTotalPages}</span>
-                        <button 
+                        <button
                           disabled={subPage >= subTotalPages}
                           onClick={() => loadSubcategories(subPage + 1, searchQuery, selectedLang, selectedParentCategoryFilter, subLimit)}
                           className="px-3 py-1.5 bg-[#1E1E1E] border border-[#2C2C2C] rounded-lg disabled:opacity-40 hover:bg-neutral-800 text-xs text-gray-300 transition flex items-center gap-1"
@@ -6557,7 +7687,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-gray-400">Subcategory:</span>
-                        <select 
+                        <select
                           value={selectedSubcategoryForTypes}
                           onChange={(e) => {
                             setSelectedSubcategoryForTypes(e.target.value);
@@ -6574,7 +7704,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         </select>
                       </div>
 
-                      <button 
+                      <button
                         onClick={() => handleOpenCreateType(selectedSubcategoryForTypes !== 'all' ? selectedSubcategoryForTypes : undefined)}
                         className="flex items-center gap-2 bg-[#D84315] hover:bg-[#BF360C] text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-md shadow-orange-950 flex-shrink-0"
                       >
@@ -6689,21 +7819,21 @@ export default function EnterpriseSuperAdminDashboard() {
                               <td className="px-6 py-4 text-gray-400 max-w-xs truncate">{item.meaning || '—'}</td>
                               <td className="px-6 py-4 text-right whitespace-nowrap">
                                 <div className="flex items-center justify-end gap-1.5">
-                                  <button 
+                                  <button
                                     onClick={() => handleOpenViewContent(item.id)}
                                     title="View Subcategory Type Details"
                                     className="p-1.5 hover:bg-neutral-700 rounded text-sky-400 transition"
                                   >
                                     <Eye className="w-3.5 h-3.5" />
                                   </button>
-                                  <button 
+                                  <button
                                     onClick={() => handleOpenEditType(item)}
                                     title="Edit Subcategory Type"
                                     className="p-1.5 hover:bg-neutral-700 rounded text-amber-400 transition"
                                   >
                                     <Edit3 className="w-3.5 h-3.5" />
                                   </button>
-                                  <button 
+                                  <button
                                     onClick={() => handleDeleteType(item.id, item.title)}
                                     title="Delete Subcategory Type"
                                     className="p-1.5 hover:bg-neutral-700 rounded text-red-400 transition"
@@ -6746,7 +7876,7 @@ export default function EnterpriseSuperAdminDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button 
+                      <button
                         disabled={typePage <= 1}
                         onClick={() => loadDevotionalContent(typePage - 1, searchQuery, selectedSubcategoryForTypes, typeLimit)}
                         className="px-3 py-1.5 bg-[#1E1E1E] border border-[#2C2C2C] rounded-lg disabled:opacity-40 hover:bg-neutral-800 text-xs text-gray-300 transition flex items-center gap-1"
@@ -6755,7 +7885,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         <span>Prev</span>
                       </button>
                       <span className="text-xs font-semibold px-2 text-amber-400">{typePage} / {typeTotalPages}</span>
-                      <button 
+                      <button
                         disabled={typePage >= typeTotalPages}
                         onClick={() => loadDevotionalContent(typePage + 1, searchQuery, selectedSubcategoryForTypes, typeLimit)}
                         className="px-3 py-1.5 bg-[#1E1E1E] border border-[#2C2C2C] rounded-lg disabled:opacity-40 hover:bg-neutral-800 text-xs text-gray-300 transition flex items-center gap-1"
@@ -6963,9 +8093,8 @@ export default function EnterpriseSuperAdminDashboard() {
                         {panchangamEntries.map((day) => (
                           <tr
                             key={day.date}
-                            className={`hover:bg-neutral-800/40 transition ${
-                              day.isOverride ? 'bg-amber-950/10' : ''
-                            }`}
+                            className={`hover:bg-neutral-800/40 transition ${day.isOverride ? 'bg-amber-950/10' : ''
+                              }`}
                           >
                             <td className="px-5 py-3.5 whitespace-nowrap">
                               <p className="font-bold text-gray-100">{day.date}</p>
@@ -7081,7 +8210,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   <div className="flex items-center gap-2.5 w-full md:w-auto">
                     <div className="relative flex-1 md:w-64">
                       <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input 
+                      <input
                         type="text"
                         value={festivalSearch}
                         onChange={(e) => {
@@ -7092,7 +8221,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg pl-8 pr-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-[#FFB300]"
                       />
                       {festivalSearch && (
-                        <button 
+                        <button
                           onClick={() => { setFestivalSearch(''); loadFestivals(1, '', festivalYear); }}
                           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 text-xs"
                         >
@@ -7101,7 +8230,7 @@ export default function EnterpriseSuperAdminDashboard() {
                       )}
                     </div>
 
-                    <button 
+                    <button
                       onClick={() => loadFestivals(1, festivalSearch, festivalYear)}
                       className="p-2 bg-[#141414] hover:bg-[#252525] border border-[#2C2C2C] rounded-lg text-gray-300 hover:text-amber-400 transition"
                       title="Refresh Festivals Catalog"
@@ -7109,7 +8238,7 @@ export default function EnterpriseSuperAdminDashboard() {
                       <RefreshCw className="w-4 h-4" />
                     </button>
 
-                    <button 
+                    <button
                       onClick={handleOpenCreateFestival}
                       className="flex items-center gap-2 bg-[#D84315] hover:bg-[#BF360C] text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-md shadow-orange-950 whitespace-nowrap"
                     >
@@ -7134,11 +8263,10 @@ export default function EnterpriseSuperAdminDashboard() {
                             setFestivalYear(yr);
                             loadFestivals(1, festivalSearch, yr);
                           }}
-                          className={`px-3 py-1 rounded-md text-xs font-bold transition ${
-                            festivalYear === yr
+                          className={`px-3 py-1 rounded-md text-xs font-bold transition ${festivalYear === yr
                               ? 'bg-[#D84315] text-white shadow-sm'
                               : 'text-gray-400 hover:text-gray-100 hover:bg-neutral-800'
-                          }`}
+                            }`}
                         >
                           {yr === 'all' ? 'All Years' : yr === '2026' ? '2026 (Active)' : yr}
                         </button>
@@ -7175,14 +8303,14 @@ export default function EnterpriseSuperAdminDashboard() {
                       </thead>
                       <tbody className="divide-y divide-[#2C2C2C]">
                         {festivals.map(f => {
-                          const langMatch = f.translations?.find(t => (t as any).language?.code === selectedLang) 
+                          const langMatch = f.translations?.find(t => (t as any).language?.code === selectedLang)
                             || f.translations?.find(t => (t as any).language?.code === 'en')
                             || f.translations?.find(t => (t as any).language?.code === 'te')
                             || f.translations?.[0];
                           const enMatch = f.translations?.find(t => (t as any).language?.code === 'en');
                           const dateObj = new Date(f.festivalDate);
-                          const formattedDate = isNaN(dateObj.getTime()) 
-                            ? f.festivalDate 
+                          const formattedDate = isNaN(dateObj.getTime())
+                            ? f.festivalDate
                             : dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
                           return (
@@ -7208,32 +8336,31 @@ export default function EnterpriseSuperAdminDashboard() {
                                 {f.sourceNote || langMatch?.description || '—'}
                               </td>
                               <td className="px-6 py-4">
-                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                                  f.isPublished !== false 
-                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${f.isPublished !== false
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                                     : 'bg-neutral-700 text-gray-400'
-                                }`}>
+                                  }`}>
                                   <span className={`w-1.5 h-1.5 rounded-full ${f.isPublished !== false ? 'bg-emerald-400 animate-pulse' : 'bg-gray-400'}`}></span>
                                   {f.isPublished !== false ? 'Published' : 'Draft'}
                                 </span>
                               </td>
                               <td className="px-6 py-4 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
-                                  <button 
+                                  <button
                                     onClick={(e) => handleOpenViewFestival(f, e)}
                                     className="p-1.5 hover:bg-neutral-700/80 rounded text-sky-400 hover:text-sky-300 transition"
                                     title="View Festival Details (View by ID)"
                                   >
                                     <Eye className="w-4 h-4" />
                                   </button>
-                                  <button 
+                                  <button
                                     onClick={(e) => handleOpenEditFestival(f, e)}
                                     className="p-1.5 hover:bg-neutral-700/80 rounded text-amber-400 hover:text-amber-300 transition"
                                     title="Edit Festival Record"
                                   >
                                     <Edit className="w-4 h-4" />
                                   </button>
-                                  <button 
+                                  <button
                                     onClick={() => handleDeleteFestival(f.id, langMatch?.name || f.slug)}
                                     className="p-1.5 hover:bg-neutral-700/80 rounded text-red-400 hover:text-red-300 transition"
                                     title="Delete Festival Record"
@@ -7287,21 +8414,21 @@ export default function EnterpriseSuperAdminDashboard() {
                       </tr>
                     ) : (
                       audioList.map(a => (
-                      <tr key={a.id} className="hover:bg-neutral-800/40">
-                        <td className="px-6 py-4 font-mono">#{a.id}</td>
-                        <td className="px-6 py-4 font-semibold text-gray-100 flex items-center gap-2">
-                          <Music className="w-3.5 h-3.5 text-amber-400" />
-                          <span>{a.title}</span>
-                        </td>
-                        <td className="px-6 py-4 font-mono text-amber-400">{a.slug}</td>
-                        <td className="px-6 py-4 font-mono">{a.duration}</td>
-                        <td className="px-6 py-4">
-                          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                            OFFLINE_ENABLED
-                          </span>
-                        </td>
-                      </tr>
-                    )))}
+                        <tr key={a.id} className="hover:bg-neutral-800/40">
+                          <td className="px-6 py-4 font-mono">#{a.id}</td>
+                          <td className="px-6 py-4 font-semibold text-gray-100 flex items-center gap-2">
+                            <Music className="w-3.5 h-3.5 text-amber-400" />
+                            <span>{a.title}</span>
+                          </td>
+                          <td className="px-6 py-4 font-mono text-amber-400">{a.slug}</td>
+                          <td className="px-6 py-4 font-mono">{a.duration}</td>
+                          <td className="px-6 py-4">
+                            <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                              OFFLINE_ENABLED
+                            </span>
+                          </td>
+                        </tr>
+                      )))}
                   </tbody>
                 </table>
               </div>
@@ -7326,11 +8453,10 @@ export default function EnterpriseSuperAdminDashboard() {
                     <button
                       key={item.key}
                       onClick={() => setSelectedCmsKey(item.key)}
-                      className={`p-4 rounded-xl border transition-all text-left flex items-start gap-3.5 ${
-                        isSelected
+                      className={`p-4 rounded-xl border transition-all text-left flex items-start gap-3.5 ${isSelected
                           ? 'bg-[#1C1C1C] border-[#FFB300] shadow-lg shadow-amber-950/30'
                           : 'bg-[#181818] border-[#2C2C2C] hover:border-neutral-600 hover:bg-[#1E1E1E]'
-                      }`}
+                        }`}
                     >
                       <div className={`p-2.5 rounded-lg ${isSelected ? 'bg-orange-500/20 text-[#FFB300] border border-orange-500/40' : 'bg-neutral-800 text-gray-400'}`}>
                         <SubIcon className="w-5 h-5" />
@@ -7466,30 +8592,29 @@ export default function EnterpriseSuperAdminDashboard() {
                           </tr>
                         ) : (
                           cmsPages.map(p => (
-                          <tr
-                            key={p.id}
-                            className={`hover:bg-neutral-800/40 cursor-pointer ${
-                              selectedCmsKey === p.key ? 'bg-orange-500/10' : ''
-                            }`}
-                            onClick={() => setSelectedCmsKey(p.key)}
-                          >
-                            <td className="px-6 py-3 font-mono text-amber-400 font-semibold">{p.key}</td>
-                            <td className="px-6 py-3 text-gray-200 font-medium">{p.description || p.key}</td>
-                            <td className="px-6 py-3 text-gray-400 max-w-xs truncate">{p.value || '—'}</td>
-                            <td className="px-6 py-3 text-gray-400">{new Date(p.updatedAt).toLocaleString()}</td>
-                            <td className="px-6 py-3 text-right">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCmsKey(p.key);
-                                }}
-                                className="px-2.5 py-1 rounded bg-[#D84315]/20 hover:bg-[#D84315]/40 text-[#FFB300] font-semibold text-[11px] transition"
-                              >
-                                Edit
-                              </button>
-                            </td>
-                          </tr>
-                        )))}
+                            <tr
+                              key={p.id}
+                              className={`hover:bg-neutral-800/40 cursor-pointer ${selectedCmsKey === p.key ? 'bg-orange-500/10' : ''
+                                }`}
+                              onClick={() => setSelectedCmsKey(p.key)}
+                            >
+                              <td className="px-6 py-3 font-mono text-amber-400 font-semibold">{p.key}</td>
+                              <td className="px-6 py-3 text-gray-200 font-medium">{p.description || p.key}</td>
+                              <td className="px-6 py-3 text-gray-400 max-w-xs truncate">{p.value || '—'}</td>
+                              <td className="px-6 py-3 text-gray-400">{new Date(p.updatedAt).toLocaleString()}</td>
+                              <td className="px-6 py-3 text-right">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCmsKey(p.key);
+                                  }}
+                                  className="px-2.5 py-1 rounded bg-[#D84315]/20 hover:bg-[#D84315]/40 text-[#FFB300] font-semibold text-[11px] transition"
+                                >
+                                  Edit
+                                </button>
+                              </td>
+                            </tr>
+                          )))}
                       </tbody>
                     </table>
                   </div>
@@ -7506,7 +8631,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   <h2 className="text-base font-bold text-gray-100">Languages in Database ({languages.length})</h2>
                   <p className="text-xs text-gray-400">Create, edit, or manage supported devotional languages.</p>
                 </div>
-                <button 
+                <button
                   onClick={handleOpenCreateLanguage}
                   className="flex items-center gap-2 bg-[#D84315] hover:bg-[#BF360C] text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-md shadow-orange-950"
                 >
@@ -7539,35 +8664,35 @@ export default function EnterpriseSuperAdminDashboard() {
                       </tr>
                     ) : (
                       languages.map(l => (
-                      <tr key={l.code} className="hover:bg-neutral-800/40">
-                        <td className="px-6 py-4 font-mono text-gray-500">#{l.id}</td>
-                        <td className="px-6 py-4 font-semibold text-gray-100">{l.name}</td>
-                        <td className="px-6 py-4 text-orange-400 font-semibold text-sm">{l.nativeName}</td>
-                        <td className="px-6 py-4 font-mono text-amber-400">{l.code}</td>
-                        <td className="px-6 py-4 font-semibold text-emerald-400">{l.translationCount || 0} records</td>
-                        <td className="px-6 py-4">
-                          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                            ACTIVE
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center space-x-2 whitespace-nowrap">
-                          <button 
-                            onClick={() => handleOpenEditLanguage(l)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded text-amber-400 text-xs font-semibold transition"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                            <span>Edit</span>
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteLanguage(l.id, l.name)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 rounded text-red-400 text-xs font-semibold transition"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Delete</span>
-                          </button>
-                        </td>
-                      </tr>
-                    )))}
+                        <tr key={l.code} className="hover:bg-neutral-800/40">
+                          <td className="px-6 py-4 font-mono text-gray-500">#{l.id}</td>
+                          <td className="px-6 py-4 font-semibold text-gray-100">{l.name}</td>
+                          <td className="px-6 py-4 text-orange-400 font-semibold text-sm">{l.nativeName}</td>
+                          <td className="px-6 py-4 font-mono text-amber-400">{l.code}</td>
+                          <td className="px-6 py-4 font-semibold text-emerald-400">{l.translationCount || 0} records</td>
+                          <td className="px-6 py-4">
+                            <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                              ACTIVE
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center space-x-2 whitespace-nowrap">
+                            <button
+                              onClick={() => handleOpenEditLanguage(l)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded text-amber-400 text-xs font-semibold transition"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteLanguage(l.id, l.name)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 rounded text-red-400 text-xs font-semibold transition"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          </td>
+                        </tr>
+                      )))}
                   </tbody>
                 </table>
               </div>
@@ -7581,33 +8706,30 @@ export default function EnterpriseSuperAdminDashboard() {
               <div className="flex items-center gap-3 bg-[#1E1E1E] p-3 rounded-xl border border-[#2C2C2C]">
                 <button
                   onClick={() => { setUserSubTab('all'); setSelectedUserSubtitle('devotees'); }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    userSubTab === 'all' && selectedUserSubtitle === 'devotees'
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${userSubTab === 'all' && selectedUserSubtitle === 'devotees'
                       ? 'bg-[#FFB300] text-black shadow-lg shadow-amber-950/20'
                       : 'text-gray-400 hover:text-gray-200 hover:bg-[#252525]'
-                  }`}
+                    }`}
                 >
                   <Users className="w-4 h-4" />
                   <span>Devotees ({users.filter(u => !u.isDeleted).length})</span>
                 </button>
                 <button
                   onClick={() => { setUserSubTab('all'); setSelectedUserSubtitle('dharma_karthas'); loadDharmaKarthas(); }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    userSubTab === 'all' && selectedUserSubtitle === 'dharma_karthas'
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${userSubTab === 'all' && selectedUserSubtitle === 'dharma_karthas'
                       ? 'bg-amber-600 text-white shadow-lg shadow-amber-950/20'
                       : 'text-gray-400 hover:text-gray-200 hover:bg-[#252525]'
-                  }`}
+                    }`}
                 >
                   <ShieldCheck className="w-4 h-4" />
                   <span>Dharma Karthas ({dharmaKarthas.length})</span>
                 </button>
                 <button
                   onClick={() => setUserSubTab('requests')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all relative ${
-                    userSubTab === 'requests'
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all relative ${userSubTab === 'requests'
                       ? 'bg-rose-600 text-white shadow-lg shadow-rose-950/20'
                       : 'text-gray-400 hover:text-gray-200 hover:bg-[#252525]'
-                  }`}
+                    }`}
                 >
                   <AlertTriangle className="w-4 h-4 text-amber-300" />
                   <span>Deletion Requests ({deletionRequests.length})</span>
@@ -8058,11 +9180,10 @@ export default function EnterpriseSuperAdminDashboard() {
                           <button
                             key={temple.id}
                             onClick={() => setSelectedDkTempleIndex(idx)}
-                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                              selectedDkTempleIndex === idx
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${selectedDkTempleIndex === idx
                                 ? 'bg-amber-600 text-white shadow-sm'
                                 : 'bg-[#222] text-gray-300 hover:bg-[#2C2C2C]'
-                            }`}
+                              }`}
                           >
                             🛕 {temple.name}
                           </button>
@@ -8086,77 +9207,70 @@ export default function EnterpriseSuperAdminDashboard() {
                             <div className="flex items-center gap-1.5 px-5 pt-3 border-b border-[#2C2C2C] bg-[#141414] overflow-x-auto text-xs">
                               <button
                                 onClick={() => setActiveDkDetailTab('about')}
-                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${
-                                  activeDkDetailTab === 'about'
+                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${activeDkDetailTab === 'about'
                                     ? 'border-amber-500 text-amber-400 bg-[#1E1E1E]'
                                     : 'border-transparent text-gray-400 hover:text-gray-200'
-                                }`}
+                                  }`}
                               >
                                 <Landmark className="w-3.5 h-3.5" />
                                 <span>1. About & History</span>
                               </button>
                               <button
                                 onClick={() => setActiveDkDetailTab('speciality')}
-                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${
-                                  activeDkDetailTab === 'speciality'
+                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${activeDkDetailTab === 'speciality'
                                     ? 'border-amber-500 text-amber-400 bg-[#1E1E1E]'
                                     : 'border-transparent text-gray-400 hover:text-gray-200'
-                                }`}
+                                  }`}
                               >
                                 <Sparkles className="w-3.5 h-3.5" />
                                 <span>2. Speciality</span>
                               </button>
                               <button
                                 onClick={() => setActiveDkDetailTab('contact')}
-                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${
-                                  activeDkDetailTab === 'contact'
+                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${activeDkDetailTab === 'contact'
                                     ? 'border-amber-500 text-amber-400 bg-[#1E1E1E]'
                                     : 'border-transparent text-gray-400 hover:text-gray-200'
-                                }`}
+                                  }`}
                               >
                                 <Phone className="w-3.5 h-3.5" />
                                 <span>3. Contact</span>
                               </button>
                               <button
                                 onClick={() => setActiveDkDetailTab('timings')}
-                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${
-                                  activeDkDetailTab === 'timings'
+                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${activeDkDetailTab === 'timings'
                                     ? 'border-amber-500 text-amber-400 bg-[#1E1E1E]'
                                     : 'border-transparent text-gray-400 hover:text-gray-200'
-                                }`}
+                                  }`}
                               >
                                 <Clock className="w-3.5 h-3.5" />
                                 <span>4. Timings & Aarthi ({temple.timings?.length || 0})</span>
                               </button>
                               <button
                                 onClick={() => setActiveDkDetailTab('events')}
-                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${
-                                  activeDkDetailTab === 'events'
+                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${activeDkDetailTab === 'events'
                                     ? 'border-amber-500 text-amber-400 bg-[#1E1E1E]'
                                     : 'border-transparent text-gray-400 hover:text-gray-200'
-                                }`}
+                                  }`}
                               >
                                 <Calendar className="w-3.5 h-3.5" />
                                 <span>5. Events ({temple.events?.length || 0})</span>
                               </button>
                               <button
                                 onClick={() => setActiveDkDetailTab('festivals')}
-                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${
-                                  activeDkDetailTab === 'festivals'
+                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${activeDkDetailTab === 'festivals'
                                     ? 'border-amber-500 text-amber-400 bg-[#1E1E1E]'
                                     : 'border-transparent text-gray-400 hover:text-gray-200'
-                                }`}
+                                  }`}
                               >
                                 <Flame className="w-3.5 h-3.5" />
                                 <span>6. Festivals ({temple.festivals?.length || 0})</span>
                               </button>
                               <button
                                 onClick={() => setActiveDkDetailTab('gallery')}
-                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${
-                                  activeDkDetailTab === 'gallery'
+                                className={`px-3.5 py-2 rounded-t-lg font-semibold transition flex items-center gap-1.5 border-b-2 ${activeDkDetailTab === 'gallery'
                                     ? 'border-amber-500 text-amber-400 bg-[#1E1E1E]'
                                     : 'border-transparent text-gray-400 hover:text-gray-200'
-                                }`}
+                                  }`}
                               >
                                 <ImageIcon className="w-3.5 h-3.5" />
                                 <span>7. Gallery ({temple.gallery?.length || 0})</span>
@@ -8608,23 +9722,23 @@ export default function EnterpriseSuperAdminDashboard() {
                 <form onSubmit={handleUpdateProfile} className="space-y-4 text-xs">
                   <div>
                     <label className="block font-semibold text-gray-400 uppercase mb-1">Email (Identity)</label>
-                    <input 
-                      type="text" 
-                      value={adminProfile.email} 
+                    <input
+                      type="text"
+                      value={adminProfile.email}
                       disabled
                       className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-gray-400 cursor-not-allowed font-mono"
                     />
                   </div>
                   <div>
                     <label className="block font-semibold text-gray-300 uppercase mb-1">Full Name</label>
-                    <input 
-                      type="text" 
-                      value={editFullName} 
+                    <input
+                      type="text"
+                      value={editFullName}
                       onChange={(e) => setEditFullName(e.target.value)}
                       className="w-full bg-[#141414] border border-[#2C2C2C] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
                     />
                   </div>
-                  <button 
+                  <button
                     type="submit"
                     className="bg-[#D84315] hover:bg-[#BF360C] text-white px-4 py-2 rounded-lg font-semibold transition"
                   >
@@ -8641,8 +9755,8 @@ export default function EnterpriseSuperAdminDashboard() {
                 <form onSubmit={handleChangePassword} className="space-y-4 text-xs">
                   <div>
                     <label className="block font-semibold text-gray-300 uppercase mb-1">Current Password</label>
-                    <input 
-                      type="password" 
+                    <input
+                      type="password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       required
@@ -8651,8 +9765,8 @@ export default function EnterpriseSuperAdminDashboard() {
                   </div>
                   <div>
                     <label className="block font-semibold text-gray-300 uppercase mb-1">New Password</label>
-                    <input 
-                      type="password" 
+                    <input
+                      type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
@@ -8661,15 +9775,15 @@ export default function EnterpriseSuperAdminDashboard() {
                   </div>
                   <div>
                     <label className="block font-semibold text-gray-300 uppercase mb-1">Confirm New Password</label>
-                    <input 
-                      type="password" 
+                    <input
+                      type="password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
                       className="w-full bg-[#141414] border border-[#2C2C2C] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
                     />
                   </div>
-                  <button 
+                  <button
                     type="submit"
                     className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-semibold transition"
                   >
@@ -8685,7 +9799,7 @@ export default function EnterpriseSuperAdminDashboard() {
             <div className="space-y-6">
               {/* Top Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div 
+                <div
                   onClick={() => { setSelectedTicketFilter('ALL'); loadTickets('ALL'); }}
                   className={`cursor-pointer bg-[#1E1E1E] p-4 rounded-xl border transition ${selectedTicketFilter === 'ALL' ? 'border-[#FFB300] bg-orange-950/20' : 'border-[#2C2C2C] hover:border-neutral-600'}`}
                 >
@@ -8697,7 +9811,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   <span className="text-[10px] text-gray-500 font-mono">Total inquiries</span>
                 </div>
 
-                <div 
+                <div
                   onClick={() => { setSelectedTicketFilter('OPEN'); loadTickets('OPEN'); }}
                   className={`cursor-pointer bg-[#1E1E1E] p-4 rounded-xl border transition ${selectedTicketFilter === 'OPEN' ? 'border-amber-500 bg-amber-950/20' : 'border-[#2C2C2C] hover:border-neutral-600'}`}
                 >
@@ -8709,7 +9823,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   <span className="text-[10px] text-amber-500 font-semibold">Awaiting reply</span>
                 </div>
 
-                <div 
+                <div
                   onClick={() => { setSelectedTicketFilter('IN_PROGRESS'); loadTickets('IN_PROGRESS'); }}
                   className={`cursor-pointer bg-[#1E1E1E] p-4 rounded-xl border transition ${selectedTicketFilter === 'IN_PROGRESS' ? 'border-sky-500 bg-sky-950/20' : 'border-[#2C2C2C] hover:border-neutral-600'}`}
                 >
@@ -8721,7 +9835,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   <span className="text-[10px] text-sky-400 font-mono">Under investigation</span>
                 </div>
 
-                <div 
+                <div
                   onClick={() => { setSelectedTicketFilter('RESOLVED'); loadTickets('RESOLVED'); }}
                   className={`cursor-pointer bg-[#1E1E1E] p-4 rounded-xl border transition ${selectedTicketFilter === 'RESOLVED' ? 'border-emerald-500 bg-emerald-950/20' : 'border-[#2C2C2C] hover:border-neutral-600'}`}
                 >
@@ -8733,7 +9847,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   <span className="text-[10px] text-emerald-400 font-mono">Addressed by team</span>
                 </div>
 
-                <div 
+                <div
                   onClick={() => { setSelectedTicketFilter('CLOSED'); loadTickets('CLOSED'); }}
                   className={`cursor-pointer bg-[#1E1E1E] p-4 rounded-xl border transition ${selectedTicketFilter === 'CLOSED' ? 'border-gray-500 bg-neutral-900' : 'border-[#2C2C2C] hover:border-neutral-600'}`}
                 >
@@ -8759,7 +9873,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       onClick={() => loadTickets(selectedTicketFilter)}
                       className="px-3 py-1.5 bg-[#141414] hover:bg-[#252525] border border-[#2C2C2C] rounded-lg text-xs font-semibold flex items-center gap-1.5 text-gray-300 transition"
                     >
@@ -8793,16 +9907,16 @@ export default function EnterpriseSuperAdminDashboard() {
                         </tr>
                       ) : (
                         tickets.map(t => {
-                          const statusBg = 
+                          const statusBg =
                             t.status === 'OPEN' ? 'bg-amber-950/60 text-amber-300 border-amber-800/40' :
-                            t.status === 'IN_PROGRESS' ? 'bg-sky-950/60 text-sky-300 border-sky-800/40' :
-                            t.status === 'RESOLVED' ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/40' :
-                            'bg-neutral-800 text-gray-400 border-neutral-700';
+                              t.status === 'IN_PROGRESS' ? 'bg-sky-950/60 text-sky-300 border-sky-800/40' :
+                                t.status === 'RESOLVED' ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/40' :
+                                  'bg-neutral-800 text-gray-400 border-neutral-700';
 
                           const priorityBg =
                             t.priority === 'URGENT' ? 'text-rose-400 font-bold' :
-                            t.priority === 'HIGH' ? 'text-orange-400 font-semibold' :
-                            'text-gray-400';
+                              t.priority === 'HIGH' ? 'text-orange-400 font-semibold' :
+                                'text-gray-400';
 
                           return (
                             <tr key={t.id} className="hover:bg-neutral-800/40 transition">
@@ -8937,11 +10051,10 @@ export default function EnterpriseSuperAdminDashboard() {
                       <button
                         key={cat}
                         onClick={() => setDeityCategoryFilter(cat)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                          deityCategoryFilter === cat
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${deityCategoryFilter === cat
                             ? 'bg-[#FFB300] text-black shadow-md'
                             : 'bg-[#141414] text-gray-400 hover:text-white border border-[#2C2C2C]'
-                        }`}
+                          }`}
                       >
                         {cat === 'ALL' ? 'All Deities' : cat}
                       </button>
@@ -8980,11 +10093,10 @@ export default function EnterpriseSuperAdminDashboard() {
                   .map((deity) => (
                     <div
                       key={deity.id}
-                      className={`bg-[#1E1E1E] rounded-xl border transition-all duration-200 hover:shadow-2xl flex flex-col justify-between overflow-hidden ${
-                        deity.isActive
+                      className={`bg-[#1E1E1E] rounded-xl border transition-all duration-200 hover:shadow-2xl flex flex-col justify-between overflow-hidden ${deity.isActive
                           ? 'border-[#2C2C2C] hover:border-[#FFB300]/60'
                           : 'border-red-900/30 opacity-75'
-                      }`}
+                        }`}
                     >
                       {/* Card Banner Image or Header */}
                       <div className="relative h-32 bg-gradient-to-br from-[#121212] to-[#252525] border-b border-[#2C2C2C] overflow-hidden">
@@ -9004,17 +10116,16 @@ export default function EnterpriseSuperAdminDashboard() {
                           />
                         ) : null}
                         <div className="absolute inset-0 bg-gradient-to-t from-[#1E1E1E] via-transparent to-transparent" />
-                        
+
                         {/* Top Badges */}
                         <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              deity.category === 'Goddess'
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${deity.category === 'Goddess'
                                 ? 'bg-rose-950/80 text-rose-300 border border-rose-800/40'
                                 : deity.category === 'Avatar'
-                                ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/40'
-                                : 'bg-amber-950/80 text-amber-300 border border-amber-800/40'
-                            }`}
+                                  ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/40'
+                                  : 'bg-amber-950/80 text-amber-300 border border-amber-800/40'
+                              }`}
                           >
                             {deity.category}
                           </span>
@@ -9022,11 +10133,10 @@ export default function EnterpriseSuperAdminDashboard() {
                           <button
                             onClick={() => handleToggleDeityStatus(deity)}
                             title={deity.isActive ? 'Active in Portal' : 'Inactive'}
-                            className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 transition ${
-                              deity.isActive
+                            className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 transition ${deity.isActive
                                 ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700/50'
                                 : 'bg-gray-800 text-gray-400 border border-gray-700'
-                            }`}
+                              }`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${deity.isActive ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}`} />
                             {deity.isActive ? 'Active' : 'Hidden'}
@@ -9056,7 +10166,7 @@ export default function EnterpriseSuperAdminDashboard() {
                                 Sacred Moola Mantra
                               </span>
                               <p className="text-xs text-amber-100/90 font-serif italic mt-0.5">
-                                "{ (deity as any).translations?.[selectedLang]?.moolaMantra || deity.moolaMantra }"
+                                "{(deity as any).translations?.[selectedLang]?.moolaMantra || deity.moolaMantra}"
                               </p>
                             </div>
                           )}
@@ -9484,7 +10594,7 @@ export default function EnterpriseSuperAdminDashboard() {
                       Configure your official sacred emblem, platform name, spiritual motto tagline, meta description, and primary devotional palette. All values are stored directly in MySQL <code className="text-amber-400">app_settings</code>.
                     </p>
                   </div>
-                  <button 
+                  <button
                     onClick={handleSaveBrandingSettings}
                     disabled={isSavingSettings}
                     className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white px-6 py-2.5 rounded-lg text-xs font-bold transition shadow-lg flex items-center gap-2 flex-shrink-0 disabled:opacity-50"
@@ -9519,9 +10629,9 @@ export default function EnterpriseSuperAdminDashboard() {
                       Active Portal Emblem
                     </span>
                     <div className="relative group w-44 h-44 rounded-2xl bg-black/60 border-2 border-[var(--admin-gold)]/60 flex items-center justify-center p-3 shadow-2xl overflow-hidden">
-                      <img 
-                        src={resolveLogoDisplayUrl(appLogoUrl)} 
-                        alt="Active Saranam Ayyappa Logo" 
+                      <img
+                        src={resolveLogoDisplayUrl(appLogoUrl)}
+                        alt="Active Saranam Ayyappa Logo"
                         className="max-w-full max-h-full object-contain drop-shadow-[0_4px_12px_rgba(255,179,0,0.25)] transition duration-300 group-hover:scale-105"
                         onError={(e: any) => { console.warn('Active emblem load error:', e.target.src); }}
                       />
@@ -9545,11 +10655,11 @@ export default function EnterpriseSuperAdminDashboard() {
                         <span className="text-[11px] text-gray-500 mt-1">
                           PNG, JPG, or WEBP (Max 5MB) • Instantly stores to database
                         </span>
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          onChange={handleLogoUpload} 
-                          className="hidden" 
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="hidden"
                         />
                       </label>
                     </div>
@@ -9565,14 +10675,14 @@ export default function EnterpriseSuperAdminDashboard() {
                         Direct Static Image Path / External CDN URL
                       </label>
                       <div className="flex gap-2">
-                        <input 
+                        <input
                           type="text"
                           value={customLogoInput}
                           onChange={(e) => setCustomLogoInput(e.target.value)}
                           placeholder="/images/saranam-ayyappa-official-emblem.jpg"
                           className="flex-1 bg-[#141414] border border-[#2C2C2C] rounded-lg px-3.5 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-[#FFB300] font-mono"
                         />
-                        <button 
+                        <button
                           onClick={() => handleSaveAppLogo()}
                           disabled={isUpdatingLogo}
                           className="bg-[#D84315] hover:bg-[#BF360C] disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 flex-shrink-0"
@@ -9616,7 +10726,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     <label className="block text-xs font-semibold text-gray-300 uppercase mb-1.5">
                       Platform Name / Header Title
                     </label>
-                    <input 
+                    <input
                       type="text"
                       value={appTitle}
                       onChange={(e) => setAppTitle(e.target.value)}
@@ -9629,7 +10739,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     <label className="block text-xs font-semibold text-gray-300 uppercase mb-1.5">
                       Sacred Motto / Tagline
                     </label>
-                    <input 
+                    <input
                       type="text"
                       value={appTagline}
                       onChange={(e) => setAppTagline(e.target.value)}
@@ -9643,7 +10753,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   <label className="block text-xs font-semibold text-gray-300 uppercase mb-1.5">
                     Platform Devotional Description & Meta Summary
                   </label>
-                  <textarea 
+                  <textarea
                     rows={3}
                     value={appDescription}
                     onChange={(e) => setAppDescription(e.target.value)}
@@ -9667,13 +10777,13 @@ export default function EnterpriseSuperAdminDashboard() {
                       Primary Sacred Green
                     </label>
                     <div className="flex items-center gap-3">
-                      <input 
+                      <input
                         type="color"
                         value={themePrimaryColor}
                         onChange={(e) => setThemePrimaryColor(e.target.value)}
                         className="w-10 h-10 rounded cursor-pointer border border-[#2C2C2C] bg-transparent"
                       />
-                      <input 
+                      <input
                         type="text"
                         value={themePrimaryColor}
                         onChange={(e) => setThemePrimaryColor(e.target.value)}
@@ -9688,13 +10798,13 @@ export default function EnterpriseSuperAdminDashboard() {
                       Accent Devotional Gold
                     </label>
                     <div className="flex items-center gap-3">
-                      <input 
+                      <input
                         type="color"
                         value={themeSecondaryColor}
                         onChange={(e) => setThemeSecondaryColor(e.target.value)}
                         className="w-10 h-10 rounded cursor-pointer border border-[#2C2C2C] bg-transparent"
                       />
-                      <input 
+                      <input
                         type="text"
                         value={themeSecondaryColor}
                         onChange={(e) => setThemeSecondaryColor(e.target.value)}
@@ -9709,13 +10819,13 @@ export default function EnterpriseSuperAdminDashboard() {
                       Background Ivory Tone
                     </label>
                     <div className="flex items-center gap-3">
-                      <input 
+                      <input
                         type="color"
                         value={themeBackgroundColor}
                         onChange={(e) => setThemeBackgroundColor(e.target.value)}
                         className="w-10 h-10 rounded cursor-pointer border border-[#2C2C2C] bg-transparent"
                       />
-                      <input 
+                      <input
                         type="text"
                         value={themeBackgroundColor}
                         onChange={(e) => setThemeBackgroundColor(e.target.value)}
@@ -9730,13 +10840,13 @@ export default function EnterpriseSuperAdminDashboard() {
                       Dark Surface / Console Base
                     </label>
                     <div className="flex items-center gap-3">
-                      <input 
+                      <input
                         type="color"
                         value={themeSurfaceColor}
                         onChange={(e) => setThemeSurfaceColor(e.target.value)}
                         className="w-10 h-10 rounded cursor-pointer border border-[#2C2C2C] bg-transparent"
                       />
-                      <input 
+                      <input
                         type="text"
                         value={themeSurfaceColor}
                         onChange={(e) => setThemeSurfaceColor(e.target.value)}
@@ -9764,7 +10874,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </label>
-                    <input 
+                    <input
                       type="url"
                       value={playStoreUrl}
                       onChange={(e) => setPlayStoreUrl(e.target.value)}
@@ -9785,7 +10895,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </label>
-                    <input 
+                    <input
                       type="url"
                       value={appStoreUrl}
                       onChange={(e) => setAppStoreUrl(e.target.value)}
@@ -9812,7 +10922,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     <label className="block text-xs font-semibold text-gray-300 uppercase mb-1.5">
                       YouTube Devotional Channel
                     </label>
-                    <input 
+                    <input
                       type="url"
                       value={socialYoutubeUrl}
                       onChange={(e) => setSocialYoutubeUrl(e.target.value)}
@@ -9826,7 +10936,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     <label className="block text-xs font-semibold text-gray-300 uppercase mb-1.5">
                       Telegram Devotee Satsang Group
                     </label>
-                    <input 
+                    <input
                       type="url"
                       value={socialTelegramUrl}
                       onChange={(e) => setSocialTelegramUrl(e.target.value)}
@@ -9840,7 +10950,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     <label className="block text-xs font-semibold text-gray-300 uppercase mb-1.5">
                       WhatsApp Updates Channel
                     </label>
-                    <input 
+                    <input
                       type="url"
                       value={socialWhatsappUrl}
                       onChange={(e) => setSocialWhatsappUrl(e.target.value)}
@@ -9854,7 +10964,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     <label className="block text-xs font-semibold text-gray-300 uppercase mb-1.5">
                       Instagram Devotional Profile
                     </label>
-                    <input 
+                    <input
                       type="url"
                       value={socialInstagramUrl}
                       onChange={(e) => setSocialInstagramUrl(e.target.value)}
@@ -9868,7 +10978,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     <label className="block text-xs font-semibold text-gray-300 uppercase mb-1.5">
                       Facebook Community Page
                     </label>
-                    <input 
+                    <input
                       type="url"
                       value={socialFacebookUrl}
                       onChange={(e) => setSocialFacebookUrl(e.target.value)}
@@ -9905,14 +11015,14 @@ export default function EnterpriseSuperAdminDashboard() {
                     Live Scrolling Announcement Text (Devotee Apps &amp; Web Header)
                   </label>
                   <div className="flex gap-2">
-                    <input 
+                    <input
                       type="text"
                       value={tickerText}
                       onChange={(e) => setTickerText(e.target.value)}
                       placeholder="e.g. స్వామియే శరణం అయ్యప్ప! శబరిమల మండల పూజ దర్శన సమయాలు ప్రారంభమైనవి..."
                       className="flex-1 bg-[#141414] border border-[#2C2C2C] rounded-lg px-3.5 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-[#FFB300]"
                     />
-                    <button 
+                    <button
                       type="button"
                       onClick={handleSaveTicker}
                       className="bg-[#D84315] hover:bg-[#BF360C] text-white px-5 py-2.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 flex-shrink-0"
@@ -9926,7 +11036,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
               {/* Bottom Save Action Button */}
               <div className="flex justify-end pt-2">
-                <button 
+                <button
                   onClick={handleSaveBrandingSettings}
                   disabled={isSavingSettings}
                   className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white px-8 py-3 rounded-lg text-xs font-bold transition shadow-xl flex items-center gap-2 disabled:opacity-50"
@@ -9969,14 +11079,14 @@ export default function EnterpriseSuperAdminDashboard() {
                       </tr>
                     ) : (
                       auditLogs.map(log => (
-                      <tr key={log.id} className="hover:bg-neutral-800/40">
-                        <td className="px-6 py-4 font-mono text-gray-500 whitespace-nowrap">{new Date(log.createdAt).toLocaleString()}</td>
-                        <td className="px-6 py-4 font-semibold text-gray-200">{log.admin?.fullName || 'System Master'}</td>
-                        <td className="px-6 py-4 font-mono text-orange-400">{log.action}</td>
-                        <td className="px-6 py-4">{log.targetType} {log.targetId ? `#${log.targetId}` : ''}</td>
-                        <td className="px-6 py-4 text-gray-400 max-w-xs truncate">{log.detailsJson || '—'}</td>
-                      </tr>
-                    )))}
+                        <tr key={log.id} className="hover:bg-neutral-800/40">
+                          <td className="px-6 py-4 font-mono text-gray-500 whitespace-nowrap">{new Date(log.createdAt).toLocaleString()}</td>
+                          <td className="px-6 py-4 font-semibold text-gray-200">{log.admin?.fullName || 'System Master'}</td>
+                          <td className="px-6 py-4 font-mono text-orange-400">{log.action}</td>
+                          <td className="px-6 py-4">{log.targetType} {log.targetId ? `#${log.targetId}` : ''}</td>
+                          <td className="px-6 py-4 text-gray-400 max-w-xs truncate">{log.detailsJson || '—'}</td>
+                        </tr>
+                      )))}
                   </tbody>
                 </table>
               </div>
@@ -9985,7 +11095,7 @@ export default function EnterpriseSuperAdminDashboard() {
         </div>
       </main>
 
-            {/* In-page views active: floating modals replaced with in-page pageMode views */}
+      {/* In-page views active: floating modals replaced with in-page pageMode views */}
 
       {/* Modal Dialog for Language Create / Edit */}
       {isLangModalOpen && (
@@ -9999,7 +11109,7 @@ export default function EnterpriseSuperAdminDashboard() {
             <div className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-gray-300 uppercase mb-1">Language Name</label>
-                <input 
+                <input
                   type="text"
                   value={langName}
                   onChange={(e) => setLangName(e.target.value)}
@@ -10031,7 +11141,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     )}
                   </button>
                 </div>
-                <input 
+                <input
                   type="text"
                   value={langNativeName}
                   onChange={(e) => setLangNativeName(e.target.value)}
@@ -10042,7 +11152,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
               <div>
                 <label className="block font-semibold text-gray-300 uppercase mb-1">ISO Code (e.g. te, kn, en, ta, hi)</label>
-                <input 
+                <input
                   type="text"
                   value={langCode}
                   onChange={(e) => setLangCode(e.target.value)}
@@ -10054,13 +11164,13 @@ export default function EnterpriseSuperAdminDashboard() {
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#2C2C2C]">
-              <button 
+              <button
                 onClick={() => setIsLangModalOpen(false)}
                 className="px-4 py-2 rounded-lg text-xs text-gray-400 hover:text-gray-200 transition"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={handleSaveLanguage}
                 className="bg-[#D84315] hover:bg-[#BF360C] text-white px-5 py-2 rounded-lg text-xs font-semibold transition"
               >
@@ -10083,7 +11193,7 @@ export default function EnterpriseSuperAdminDashboard() {
             <div className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-gray-300 uppercase mb-1">Category Association</label>
-                <select 
+                <select
                   value={contentCategoryId}
                   onChange={(e) => setContentCategoryId(e.target.value)}
                   className="w-full bg-[#121212] border border-[#2C2C2C] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-[#FFB300]"
@@ -10096,7 +11206,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
               <div>
                 <label className="block font-semibold text-gray-300 uppercase mb-1">Verse / Stotra Title</label>
-                <input 
+                <input
                   type="text"
                   value={contentTitle}
                   onChange={(e) => setContentTitle(e.target.value)}
@@ -10135,7 +11245,7 @@ export default function EnterpriseSuperAdminDashboard() {
             </div>
 
             <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#2C2C2C]">
-              <button 
+              <button
                 type="button"
                 onClick={() => openTranslationModal('devotional', editingContentId || undefined, [
                   { key: 'title', label: 'Verse / Stotra Title', value: contentTitle },
@@ -10154,13 +11264,13 @@ export default function EnterpriseSuperAdminDashboard() {
               </button>
 
               <div className="flex items-center gap-2">
-                <button 
+                <button
                   onClick={() => setIsContentModalOpen(false)}
                   className="px-4 py-2 rounded-lg text-xs text-gray-400 hover:text-gray-200 transition"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={handleSaveContent}
                   className="bg-[#D84315] hover:bg-[#BF360C] text-white px-5 py-2 rounded-lg text-xs font-semibold transition"
                 >
@@ -10181,7 +11291,7 @@ export default function EnterpriseSuperAdminDashboard() {
                 <Calendar className="w-5 h-5 text-orange-400" />
                 <span>{editingFestivalId ? `Edit Festival (#${editingFestivalId})` : 'Create Sabarimala Festival / Observance'}</span>
               </h3>
-              <button 
+              <button
                 onClick={() => setIsFestivalModalOpen(false)}
                 className="text-gray-400 hover:text-gray-200 transition"
               >
@@ -10194,7 +11304,7 @@ export default function EnterpriseSuperAdminDashboard() {
                 <label className="block font-semibold text-gray-300 uppercase mb-1">
                   Festival Name <span className="text-red-400">*</span>
                 </label>
-                <input 
+                <input
                   type="text"
                   value={festivalName}
                   onChange={(e) => setFestivalName(e.target.value)}
@@ -10208,7 +11318,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   <label className="block font-semibold text-gray-300 uppercase mb-1">
                     Annual / Observance Date <span className="text-red-400">*</span>
                   </label>
-                  <input 
+                  <input
                     type="date"
                     value={festivalDate}
                     onChange={(e) => setFestivalDate(e.target.value)}
@@ -10220,7 +11330,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   <label className="block font-semibold text-gray-300 uppercase mb-1">
                     Slug / URL Identifier
                   </label>
-                  <input 
+                  <input
                     type="text"
                     value={festivalSlug}
                     onChange={(e) => setFestivalSlug(e.target.value)}
@@ -10234,7 +11344,7 @@ export default function EnterpriseSuperAdminDashboard() {
                 <label className="block font-semibold text-gray-300 uppercase mb-1">
                   Source & Observance Note
                 </label>
-                <textarea 
+                <textarea
                   rows={3}
                   value={festivalNote}
                   onChange={(e) => setFestivalNote(e.target.value)}
@@ -10244,7 +11354,7 @@ export default function EnterpriseSuperAdminDashboard() {
               </div>
 
               <div className="flex items-center gap-2 pt-1">
-                <input 
+                <input
                   type="checkbox"
                   id="festivalPublishToggle"
                   checked={festivalIsPublished}
@@ -10258,7 +11368,7 @@ export default function EnterpriseSuperAdminDashboard() {
             </div>
 
             <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#2C2C2C]">
-              <button 
+              <button
                 type="button"
                 onClick={() => openTranslationModal('festivals', editingFestivalId ?? undefined, [
                   { key: 'name', label: 'Festival Name', value: festivalName },
@@ -10274,13 +11384,13 @@ export default function EnterpriseSuperAdminDashboard() {
               </button>
 
               <div className="flex items-center gap-2">
-                <button 
+                <button
                   onClick={() => setIsFestivalModalOpen(false)}
                   className="px-4 py-2 rounded-lg text-xs text-gray-400 hover:text-gray-200 transition"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={handleSaveFestival}
                   disabled={isSavingFestival}
                   className="bg-[#D84315] hover:bg-[#BF360C] text-white px-5 py-2 rounded-lg text-xs font-semibold transition disabled:opacity-50"
@@ -10309,7 +11419,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   <p className="text-[11px] font-mono text-amber-400">Festival ID: #{selectedViewFestival.id}</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setIsViewFestivalModalOpen(false)}
                 className="text-gray-400 hover:text-gray-200 transition"
               >
@@ -10327,11 +11437,10 @@ export default function EnterpriseSuperAdminDashboard() {
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-gray-400 block mb-0.5">Publish Status</span>
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${
-                    selectedViewFestival.isPublished !== false 
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${selectedViewFestival.isPublished !== false
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                       : 'bg-neutral-700 text-gray-300'
-                  }`}>
+                    }`}>
                     {selectedViewFestival.isPublished !== false ? 'Published & Active' : 'Draft / Archived'}
                   </span>
                 </div>
@@ -10374,7 +11483,7 @@ export default function EnterpriseSuperAdminDashboard() {
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-[#2C2C2C]">
-              <button 
+              <button
                 onClick={() => {
                   const target = selectedViewFestival;
                   setIsViewFestivalModalOpen(false);
@@ -10386,7 +11495,7 @@ export default function EnterpriseSuperAdminDashboard() {
                 <span>Edit Festival</span>
               </button>
 
-              <button 
+              <button
                 onClick={() => setIsViewFestivalModalOpen(false)}
                 className="bg-[#2C2C2C] hover:bg-[#383838] text-gray-200 px-5 py-2 rounded-lg text-xs font-semibold transition"
               >
@@ -10405,12 +11514,11 @@ export default function EnterpriseSuperAdminDashboard() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-sm font-bold text-[#FFB300]">{selectedTicket.ticket_number}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                    selectedTicket.status === 'OPEN' ? 'bg-amber-950/60 text-amber-300 border-amber-800/40' :
-                    selectedTicket.status === 'IN_PROGRESS' ? 'bg-sky-950/60 text-sky-300 border-sky-800/40' :
-                    selectedTicket.status === 'RESOLVED' ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/40' :
-                    'bg-neutral-800 text-gray-400 border-neutral-700'
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selectedTicket.status === 'OPEN' ? 'bg-amber-950/60 text-amber-300 border-amber-800/40' :
+                      selectedTicket.status === 'IN_PROGRESS' ? 'bg-sky-950/60 text-sky-300 border-sky-800/40' :
+                        selectedTicket.status === 'RESOLVED' ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/40' :
+                          'bg-neutral-800 text-gray-400 border-neutral-700'
+                    }`}>
                     {selectedTicket.status}
                   </span>
                   <span className="text-[10px] text-gray-400 font-mono">
@@ -10419,7 +11527,7 @@ export default function EnterpriseSuperAdminDashboard() {
                 </div>
                 <h3 className="text-base font-bold text-gray-100 mt-1">{selectedTicket.subject}</h3>
               </div>
-              <button 
+              <button
                 onClick={() => setIsTicketModalOpen(false)}
                 className="text-gray-400 hover:text-gray-200 p-1 rounded-lg"
               >
@@ -10461,7 +11569,7 @@ export default function EnterpriseSuperAdminDashboard() {
               <label className="block text-xs font-semibold text-gray-300 uppercase">
                 Official Administrative Response / Action Taken
               </label>
-              <textarea 
+              <textarea
                 rows={4}
                 value={ticketReplyText}
                 onChange={(e) => setTicketReplyText(e.target.value)}
@@ -10710,7 +11818,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   </p>
                 </div>
               </div>
-              <button 
+              <button
                 type="button"
                 onClick={() => setIsTempleModalOpen(false)}
                 className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition"
@@ -10721,7 +11829,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
             {/* Modal Form */}
             <form onSubmit={handleSaveTemple} className="p-6 space-y-6">
-              
+
               {/* SECTION 1: TEMPLE IDENTITY & CLASSIFICATION */}
               <div className="space-y-4">
                 <h4 className="text-sm font-bold text-[#FFB300] border-b border-[#2C2C2C] pb-2 flex items-center gap-2">
@@ -10774,11 +11882,10 @@ export default function EnterpriseSuperAdminDashboard() {
                           key={type.id}
                           type="button"
                           onClick={() => setTempleForm({ ...templeForm, templeType: type.id })}
-                          className={`text-left p-3 rounded-lg border transition-all flex flex-col justify-between ${
-                            isSelected
+                          className={`text-left p-3 rounded-lg border transition-all flex flex-col justify-between ${isSelected
                               ? 'bg-amber-950/40 border-[#FFB300] shadow-md ring-1 ring-[#FFB300]/50'
                               : 'bg-[#1C1C1C] border-[#2C2C2C] hover:border-neutral-600'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-bold text-xs text-gray-100 flex items-center gap-1.5">
@@ -11234,7 +12341,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   {editingTempleType ? `Edit Temple Type: ${editingTempleType.name}` : 'Create New Temple Type'}
                 </h3>
               </div>
-              <button 
+              <button
                 onClick={() => setIsTempleTypeModalOpen(false)}
                 className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition"
               >
@@ -11247,7 +12354,7 @@ export default function EnterpriseSuperAdminDashboard() {
                 <label className="block text-xs font-semibold text-gray-300 uppercase mb-1.5">
                   Temple Type Identifier (Code Key)
                 </label>
-                <input 
+                <input
                   type="text"
                   required
                   disabled={!!editingTempleType}
@@ -11263,7 +12370,7 @@ export default function EnterpriseSuperAdminDashboard() {
                 <label className="block text-xs font-semibold text-gray-300 uppercase mb-1.5">
                   Display Name *
                 </label>
-                <input 
+                <input
                   type="text"
                   required
                   placeholder="e.g. Main Temple, Sub Temple, Multi Temple..."
@@ -11277,7 +12384,7 @@ export default function EnterpriseSuperAdminDashboard() {
                 <label className="block text-xs font-semibold text-gray-300 uppercase mb-1.5">
                   Description &amp; Sanctum Scope
                 </label>
-                <textarea 
+                <textarea
                   rows={3}
                   placeholder="Explain when a devotee or Dharma Kartha selects this temple type..."
                   value={templeTypeForm.description}
@@ -11329,7 +12436,7 @@ export default function EnterpriseSuperAdminDashboard() {
       )}
 
       {/* Google Cloud Translation Advanced v3 Modal */}
-            {/* Modal Dialog for View Panchangam Day Details (View by ID) */}
+      {/* Modal Dialog for View Panchangam Day Details (View by ID) */}
       {isViewPanchangamModalOpen && selectedViewPanchangam && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#1C1C1C] border border-[#FFB300]/50 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
@@ -11778,7 +12885,7 @@ export default function EnterpriseSuperAdminDashboard() {
         </div>
       )}
 
-<TranslationModal
+      <TranslationModal
         isOpen={translationModalOpen}
         onClose={() => setTranslationModalOpen(false)}
         module={translationTargetModule}
