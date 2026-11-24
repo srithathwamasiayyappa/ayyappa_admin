@@ -3221,8 +3221,8 @@ export default function EnterpriseSuperAdminDashboard() {
   // This completely eliminates the 2-second login screen flash on page refresh!
   if (isAuthChecking) {
     return (
-      <div className="min-h-screen bg-[var(--admin-bg-base)] flex flex-col items-center justify-center p-4">
-        <div className="w-24 h-24 rounded-2xl border-2 border-[var(--admin-gold)] bg-black/70 flex items-center justify-center p-2.5 shadow-2xl mb-4 overflow-hidden animate-pulse">
+      <div className="min-h-screen bg-[#071914] flex flex-col items-center justify-center p-4">
+        <div className="w-24 h-24 rounded-2xl border-2 border-[#D4AF37] bg-black/70 flex items-center justify-center p-2.5 shadow-2xl mb-4 overflow-hidden animate-pulse">
           <img
             src={resolveLogoDisplayUrl(appLogoUrl)}
             alt="Saranam Ayyappa Logo"
@@ -3235,7 +3235,7 @@ export default function EnterpriseSuperAdminDashboard() {
             }}
           />
         </div>
-        <p className="text-sm font-semibold text-[var(--admin-gold)] tracking-wider">
+        <p className="text-sm font-semibold text-[#FFB300] tracking-wider animate-pulse">
           Loading Admin Console...
         </p>
       </div>
@@ -3244,10 +3244,10 @@ export default function EnterpriseSuperAdminDashboard() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[var(--admin-bg-base)] flex items-center justify-center p-4">
-        <div className="bg-[var(--admin-bg-surface)] border-2 border-[var(--admin-gold)] rounded-2xl w-full max-w-md p-8 shadow-2xl space-y-6">
+      <div className="min-h-screen bg-[#071914] flex items-center justify-center p-4">
+        <div className="bg-[#0c251e] border-2 border-[#D4AF37] rounded-2xl w-full max-w-md p-8 shadow-2xl space-y-6">
           <div className="text-center space-y-2">
-            <div className="w-24 h-24 rounded-2xl border-2 border-[var(--admin-gold)] bg-black/70 flex items-center justify-center p-2.5 shadow-md mx-auto mb-2 overflow-hidden">
+            <div className="w-24 h-24 rounded-2xl border-2 border-[#D4AF37] bg-black/70 flex items-center justify-center p-2.5 shadow-md mx-auto mb-2 overflow-hidden">
               <img
                 src={resolveLogoDisplayUrl(appLogoUrl)}
                 alt="Saranam Ayyappa Logo"
