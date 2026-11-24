@@ -3345,7 +3345,7 @@ export default function EnterpriseSuperAdminDashboard() {
         },
         {
           key: 'subcategories',
-          label: `Subcategories (${subcategories.length || 27})`,
+          label: `Subcategories (${stats?.activeSubcategories ?? (subTotalCount || subcategories.length || 134)})`,
           onClick: () => {
             setActiveTab('subcategories');
             setSelectedCategorySubtitle('subcategories');
@@ -3356,7 +3356,7 @@ export default function EnterpriseSuperAdminDashboard() {
         },
         {
           key: 'subcategory_types',
-          label: `Subcategory Types (${devotionalContent.length})`,
+          label: `Subcategory Types (${stats?.publishedDevotionalItems ?? (typeTotalCount || devotionalContent.length || 44)})`,
           onClick: () => {
             setActiveTab('content');
             setSelectedCategorySubtitle('subcategories');
@@ -3367,7 +3367,7 @@ export default function EnterpriseSuperAdminDashboard() {
         },
         {
           key: 'temples',
-          label: `Temples (${templesList.length || 5})`,
+          label: `Temples (${templesList.length || 7})`,
           onClick: () => {
             setActiveTab('temples');
             setSelectedCategorySubtitle('temples');
@@ -3541,7 +3541,7 @@ export default function EnterpriseSuperAdminDashboard() {
     if (activeTab === 'cms') return 'Website / App CMS Management';
     if (activeTab === 'users') return `User Management — ${selectedUserSubtitle === 'dharma_karthas' ? 'Dharma Karthas' : 'Devotees'}`;
     if (activeTab === 'devotional_services') return 'Categories — Devotional Services (9)';
-    if (activeTab === 'subcategories') return `Categories — Devotional Subcategories (${subcategories.length || 27})`;
+    if (activeTab === 'subcategories') return `Categories — Devotional Subcategories (${stats?.activeSubcategories ?? (subTotalCount || subcategories.length || 134)})`;
     if (activeTab === 'temples' || (activeTab === 'categories' && selectedCategorySubtitle === 'temples')) return `Categories — Sacred Temples (${templesList.length})`;
     if (activeTab === 'categories') return `Categories — ${selectedCategorySubtitle.toUpperCase()}`;
     if (activeTab === 'content') return `Spiritual Management Vidhanam — ${selectedVidhanamSubtitle === 'gods' ? 'Gods & Goddesses' : selectedVidhanamSubtitle === 'slokas' ? 'Slokas' : selectedVidhanamSubtitle === 'astothrams' ? 'Astothrams' : 'Stotras'}`;
@@ -6105,7 +6105,7 @@ export default function EnterpriseSuperAdminDashboard() {
                           }}
                           className="bg-[#141414] border border-[#2C2C2C] rounded-lg px-3 py-2 text-xs text-amber-400 focus:outline-none focus:border-[#FFB300] max-w-xs truncate"
                         >
-                          <option value="all">All Subcategories ({subcategories.length})</option>
+                          <option value="all">All Subcategories ({stats?.activeSubcategories ?? (subTotalCount || subcategories.length)})</option>
                           {subcategories.map(s => (
                             <option key={s.id} value={s.id}>
                               {s.title} (/{s.slug})
