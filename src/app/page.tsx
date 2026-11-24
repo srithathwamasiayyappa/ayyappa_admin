@@ -1032,12 +1032,12 @@ export default function EnterpriseSuperAdminDashboard() {
     }
     if (needle === 'stotras' || needle === 'divine-stotras' || needle === '4' || needle === '114') {
       const candidates = list.filter(p =>
-        String(p.id) === '4' || String(p.id) === '114' ||
+        String(p.id) === '114' || String(p.id) === '4' ||
         p.slug === 'stotras' || p.slug === 'divine-stotras' || p.slug === 'stotramulu' || p.slug === 'slogans-of-sri-ayyappa-swami'
       );
       const activeMatch = candidates.find(p => (p.subcategoriesCount || 0) > 0) || candidates[0];
       if (activeMatch) return String(activeMatch.id);
-      return '4';
+      return '114';
     }
     if (needle === 'slokas' || needle === 'daily-slokas' || needle === '115') {
       const slMatch = list.find(p => String(p.id) === '115') || list.filter(p => p.slug === 'slokas' || p.slug === 'daily-slokas' || p.slug?.includes('shlok')).sort((a, b) => (b.subcategoriesCount || 0) - (a.subcategoriesCount || 0))[0];
@@ -5728,7 +5728,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         {/* Standard Sanctum Categories with Exact Target Matching */}
                         {[
                           { key: 'pooja', name: 'Pooja Vidhanam', icon: '🪔', targetSlugs: ['pooja-vidhanam', 'poojalu-vrathaalu', 'pooja'], exactId: '113' },
-                          { key: 'stotras', name: 'Divine Stotras', icon: '📜', targetSlugs: ['stotras', 'divine-stotras', 'stotramulu', 'slogans-of-sri-ayyappa-swami'], exactId: '4' },
+                          { key: 'stotras', name: 'Divine Stotras', icon: '📜', targetSlugs: ['stotras', 'divine-stotras', 'stotramulu', 'slogans-of-sri-ayyappa-swami'], exactId: '114' },
                           { key: 'slokas', name: 'Daily Slokas', icon: '📿', targetSlugs: ['slokas', 'daily-slokas'], exactId: '115' },
                           { key: 'songs', name: 'Bhajans & Songs', icon: '🎵', targetSlugs: ['songs', 'bhajans', 'bhajana-keerthanalu'], exactId: '116' },
                           { key: 'live-streams', name: 'Live Darshan', icon: '📺', targetSlugs: ['live-streams', 'live-darshan'], exactId: '117' },
