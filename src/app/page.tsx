@@ -4703,11 +4703,11 @@ export default function EnterpriseSuperAdminDashboard() {
             </div>
           )}
 
-                    {/* IN-PAGE NORMAL PAGE MODE: VIEW DETAILS (NO FLOATING MODAL) */}
+          {/* IN-PAGE NORMAL PAGE MODE: VIEW DETAILS (SANCTUM GREEN & GOLD SACRED PREVIEW) */}
           {pageMode === 'VIEW_CATEGORY' && viewDetail && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              {/* In-page Header */}
-              <div className="bg-[#1C1C1C] rounded-xl border border-[#2C2C2C] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+              {/* In-page Header: Logo Colors Sanctum Green & Divine Gold */}
+              <div className="bg-[#071C14] rounded-xl border border-[#1A4E38] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -4715,27 +4715,27 @@ export default function EnterpriseSuperAdminDashboard() {
                       setPageMode('LIST');
                       setViewDetail(null);
                     }}
-                    className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-neutral-700 shadow"
+                    className="px-3 py-1.5 rounded-lg bg-[#0D2E21] hover:bg-[#133F2E] text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-[#1E5C41] shadow"
                   >
-                    <ArrowLeft className="w-4 h-4 text-amber-400" />
+                    <ArrowLeft className="w-4 h-4 text-[#FFB300]" />
                     <span>Back to List</span>
                   </button>
                   <div>
                     <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-orange-400" />
+                      <Sparkles className="w-4 h-4 text-[#FFB300]" />
                       <span>
                         {viewDetail.isType
                           ? 'Devotional Subcategory Type / Sacred Verse'
                           : viewDetail.isSubcategory || viewDetail.parentId
-                          ? 'Devotional Subcategory Details'
+                          ? 'Devotional Subcategory Sanctum Details'
                           : 'Devotional Master Category'}
                       </span>
                     </h3>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-emerald-400/80">
                       {viewDetail.isType
                         ? `Type DB Record #${viewDetail.id} — Linked to Subcategory`
                         : viewDetail.isSubcategory || viewDetail.parentId
-                        ? `Subcategory Record #${viewDetail.id} — Dynamic DB Entry`
+                        ? `Subcategory Record #${viewDetail.id} — Live Sanctum Worship Flow`
                         : `Master Category Record #${viewDetail.id}`}
                     </p>
                   </div>
@@ -4785,7 +4785,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         }
                       }
                     }}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 rounded-lg text-amber-300 font-semibold text-xs transition"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] font-bold text-xs rounded-lg transition shadow-lg shadow-amber-500/20"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
                     <span>Edit This Record</span>
@@ -4796,193 +4796,285 @@ export default function EnterpriseSuperAdminDashboard() {
                       setPageMode('LIST');
                       setViewDetail(null);
                     }}
-                    className="px-4 py-2 bg-[#252525] hover:bg-[#303030] border border-[#3A3A3A] rounded-lg text-gray-200 font-semibold text-xs transition"
+                    className="px-4 py-2 bg-[#0D2E21] hover:bg-[#133F2E] border border-[#1E5C41] rounded-lg text-gray-200 font-semibold text-xs transition"
                   >
                     Close
                   </button>
                 </div>
               </div>
 
-              {/* View Detail Body Cards */}
-              <div className="bg-[#1E1E1E] rounded-xl border border-[#2C2C2C] p-6 space-y-6 text-xs text-gray-300 shadow-xl">
-                {/* Badges Bar */}
-                <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-[#2C2C2C]">
-                  <span className="px-2.5 py-1 rounded bg-[#252525] border border-[#3A3A3A] font-mono text-gray-300">
-                    ID: #{viewDetail.id}
-                  </span>
-                  <span className="px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 font-mono text-amber-300">
-                    slug: /{viewDetail.slug}
-                  </span>
-                  {(viewDetail.isSubcategory || viewDetail.parentId) && (
-                    <span className="px-2.5 py-1 rounded bg-orange-950/60 border border-orange-700/50 text-orange-300 font-semibold flex items-center gap-1">
-                      <span>📁 Parent:</span>
-                      <span>{viewDetail.parentTitle || viewDetail.parentSlug || 'Pooja Vidhanam'}</span>
+              {/* Main Detailed Grid: Devotional Scroll Reader (Left) & Admin Specs (Right) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* LEFT: Sacred Devotional Reader (Authentic Green & Gold Scroll) */}
+                <div className="lg:col-span-7 flex flex-col items-center">
+                  <div className="w-full flex items-center justify-between mb-3 px-1 text-xs">
+                    <span className="font-bold text-[#FFB300] uppercase tracking-wider flex items-center gap-1.5">
+                      <span>📜</span>
+                      <span>Devotional Reader View (Mobile Sanctuary Experience)</span>
                     </span>
-                  )}
-                  <span className={`px-2.5 py-1 rounded border font-medium ${viewDetail.isAudio ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-blue-500/10 border-blue-500/30 text-blue-400'}`}>
-                    {viewDetail.isAudio ? '🎵 Audio Track' : '📜 Vidhanam & Stotra'}
-                  </span>
-                  <span className="px-2.5 py-1 rounded bg-[#252525] border border-[#3A3A3A] text-gray-400">
-                    Language: {selectedLang.toUpperCase()}
-                  </span>
-                </div>
-
-                {/* Subcategory Artwork Preview if available */}
-                {viewDetail.imageUrl && (
-                  <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 flex items-center gap-4">
-                    <div className="w-24 h-24 rounded-lg overflow-hidden border border-amber-500/30 flex-shrink-0 bg-neutral-900 flex items-center justify-center">
-                      <img
-                        src={viewDetail.imageUrl.startsWith('http') || viewDetail.imageUrl.startsWith('data:') 
-                          ? viewDetail.imageUrl 
-                          : `${API_ORIGIN}${viewDetail.imageUrl.startsWith('/') ? '' : '/'}${viewDetail.imageUrl}`}
-                        alt={viewDetail.title}
-                        className="w-full h-full object-cover"
-                        onError={(e: any) => {
-                          e.currentTarget.style.display = 'none';
-                          if (e.currentTarget.parentElement) {
-                            e.currentTarget.parentElement.innerHTML = '<span class="text-2xl">🪔</span>';
-                          }
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Subcategory Artwork</span>
-                      <h5 className="font-semibold text-gray-100 text-sm mt-0.5">{viewDetail.title}</h5>
-                      <p className="text-[11px] text-gray-400 mt-0.5 break-all font-mono">{viewDetail.imageUrl}</p>
-                    </div>
+                    <span className="text-[11px] text-emerald-400/90 font-mono">
+                      {viewDetail.contents && viewDetail.contents.length > 0
+                        ? `${viewDetail.contents.length} Ordered Steps`
+                        : 'Single Sacred Composition'}
+                    </span>
                   </div>
-                )}
 
-                {/* Title */}
-                <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                    {viewDetail.isType ? 'Type / Sacred Verse Title' : viewDetail.isSubcategory || viewDetail.parentId ? 'Subcategory Title' : 'Category Title'}
-                  </span>
-                  <h4 className="text-lg font-bold text-gray-100 flex items-center gap-2">
-                    <span className="text-orange-400">🪔</span>
-                    <span>{viewDetail.title}</span>
-                  </h4>
-                </div>
+                  {/* Sacred Scroll Outer Container */}
+                  <div className="w-full max-w-lg rounded-2xl overflow-hidden border-2 border-[#D4AF37]/60 shadow-[0_12px_45px_rgba(0,0,0,0.6),0_0_25px_rgba(212,175,55,0.15)] bg-[#071F17]">
+                    
+                    {/* Top Sanctum Header mimicking mobile app with logo colors */}
+                    <div className="bg-[#0A2A1E] text-[#FFB300] border-b border-[#1E5C41] px-5 py-3 flex items-center justify-between shadow">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🪔</span>
+                        <span className="font-bold text-sm tracking-wide text-[#FFB300] truncate max-w-xs">{viewDetail.title}</span>
+                      </div>
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#071C14] border border-[#1E5C41] text-emerald-400">
+                        /{viewDetail.slug}
+                      </span>
+                    </div>
 
-                {/* Multi-Language Translations (Database Records) */}
-                {viewDetail.translations && viewDetail.translations.length > 0 && (
-                  <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-2">
-                    <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
-                      Database Multi-Language Translations ({viewDetail.translations.length})
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mt-1">
-                      {viewDetail.translations.map((tr) => (
-                        <div key={tr.code} className="p-3 rounded-lg bg-[#1C1C1C] border border-[#2C2C2C] space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-amber-300 uppercase text-[10px]">{tr.name || tr.code}</span>
-                            <span className="font-mono text-gray-500 text-[9px]">{tr.code}</span>
-                          </div>
-                          <div className="font-semibold text-gray-100 text-xs">{tr.title}</div>
-                          {tr.description && (
-                            <div className="text-gray-400 text-[11px] line-clamp-2">{tr.description}</div>
+                    {/* Scroll Canvas with Sanctum Green & Divine Gold Typography */}
+                    <div className="bg-gradient-to-b from-[#082218] via-[#0A291E] to-[#071D15] p-6 text-center text-xs leading-relaxed max-h-[760px] overflow-y-auto space-y-5">
+                      
+                      {/* Top Sacred Arch Motif (Lotus Filigree) in Gold */}
+                      <div className="flex justify-center pt-2">
+                        <svg className="w-16 h-8 text-[#FFB300] opacity-80" viewBox="0 0 100 40" fill="currentColor">
+                          <path d="M50 0 C40 15, 20 20, 0 20 C20 25, 45 35, 50 40 C55 35, 80 25, 100 20 C80 20, 60 15, 50 0 Z"></path>
+                        </svg>
+                      </div>
+
+                      {/* Initial Sacred Invocations */}
+                      <div className="space-y-1 text-sm font-semibold text-[#FDE68A]">
+                        <p>śrī mahāgaṇādhipatayē namaḥ</p>
+                        <p>śrī gurubhyō namaḥ</p>
+                        <p className="font-bold text-[#FFB300]">hariḥ ōṁ</p>
+                      </div>
+
+                      <div className="border-b border-dotted border-[#D4AF37]/40 w-3/4 mx-auto my-3"></div>
+
+                      {/* Case A: If Attached Devotional Types / Verses Exist in Contents */}
+                      {viewDetail.contents && viewDetail.contents.length > 0 ? (
+                        <div className="space-y-6">
+                          {viewDetail.contents.map((v, idx) => (
+                            <div key={v.id || idx} className="space-y-2.5">
+                              {/* Step Title / Deity in Radiant Gold */}
+                              <h4 className="text-sm font-bold text-[#FFB300] tracking-wide uppercase flex items-center justify-center gap-1.5">
+                                <span>{v.title}</span>
+                              </h4>
+
+                              {/* Sacred Chanting Verses */}
+                              {v.sacredText && (
+                                <div className="text-sm font-bold text-[#FEF08A] font-serif leading-relaxed whitespace-pre-wrap max-w-md mx-auto py-1">
+                                  {v.sacredText}
+                                </div>
+                              )}
+
+                              {/* Ritual Action / Instructions / Commentary in Sage Green Box */}
+                              {v.meaning && (
+                                <div className="text-xs italic text-[#A7F3D0] bg-[#061A13]/90 border border-[#1B563D] p-2.5 rounded-lg max-w-md mx-auto text-center leading-relaxed">
+                                  {v.meaning}
+                                </div>
+                              )}
+
+                              {/* Dotted Gold Divider between steps */}
+                              {idx < (viewDetail.contents?.length || 0) - 1 && (
+                                <div className="border-b border-dotted border-[#D4AF37]/35 w-3/4 mx-auto pt-4"></div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        /* Case B: Single Composition (Description / Sacred Text / Meaning) */
+                        <div className="space-y-4">
+                          <h4 className="text-base font-bold text-[#FFB300] tracking-wide">{viewDetail.title}</h4>
+
+                          {viewDetail.sacredText && (
+                            <div className="text-sm font-bold text-[#FEF08A] font-serif leading-relaxed whitespace-pre-wrap max-w-md mx-auto py-2 p-3 bg-[#061A13]/70 rounded-xl border border-[#1B563D]">
+                              {viewDetail.sacredText}
+                            </div>
+                          )}
+
+                          {viewDetail.meaning && viewDetail.meaning !== viewDetail.description && (
+                            <div className="text-xs italic text-[#A7F3D0] bg-[#061A13]/90 border border-[#1B563D] p-3 rounded-lg max-w-md mx-auto text-center">
+                              {viewDetail.meaning}
+                            </div>
+                          )}
+
+                          {viewDetail.description && (
+                            <div 
+                              className="text-sm font-serif leading-relaxed text-[#FEF08A] whitespace-pre-wrap max-w-md mx-auto font-medium"
+                              dangerouslySetInnerHTML={{ __html: viewDetail.description }}
+                            />
+                          )}
+
+                          {/* Quick action to add step verses to this subcategory */}
+                          {(viewDetail.isSubcategory || viewDetail.parentId) && (
+                            <div className="pt-3">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCreateType(viewDetail.id)}
+                                className="px-3.5 py-1.5 bg-[#FFB300]/10 hover:bg-[#FFB300]/20 text-[#FFB300] border border-[#FFB300]/40 rounded-lg text-xs font-bold transition flex items-center gap-1.5 mx-auto"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add First Chanting Step to this Subcategory</span>
+                              </button>
+                            </div>
                           )}
                         </div>
-                      ))}
+                      )}
+
+                      {/* Bottom Sacred Lotus Filigree Finish */}
+                      <div className="flex justify-center pt-4">
+                        <svg className="w-16 h-8 text-[#FFB300] opacity-80 transform rotate-180" viewBox="0 0 100 40" fill="currentColor">
+                          <path d="M50 0 C40 15, 20 20, 0 20 C20 25, 45 35, 50 40 C55 35, 80 25, 100 20 C80 20, 60 15, 50 0 Z"></path>
+                        </svg>
+                      </div>
+
                     </div>
                   </div>
-                )}
-
-                {/* Sacred Verse Text if Type / Devotional Verse */}
-                {viewDetail.sacredText && (
-                  <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-2">
-                    <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
-                      Sacred Sloka / Stotra / Chant Text
-                    </span>
-                    <div className="text-amber-200 font-serif leading-relaxed whitespace-pre-wrap bg-[#1a1a1a] p-4 rounded-lg border border-amber-900/30 text-xs">
-                      {viewDetail.sacredText}
-                    </div>
-                  </div>
-                )}
-
-                {/* Spiritual Meaning if Type / Devotional Verse */}
-                {viewDetail.meaning && viewDetail.meaning !== viewDetail.description && (
-                  <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-2">
-                    <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">
-                      Spiritual Meaning / Commentary
-                    </span>
-                    <div className="text-gray-300 text-xs leading-relaxed whitespace-pre-wrap bg-[#1a1a1a] p-3 rounded-lg border border-emerald-900/30">
-                      {viewDetail.meaning}
-                    </div>
-                  </div>
-                )}
-
-                {/* Description / Vidhanam Procedure */}
-                <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                    {viewDetail.isType
-                      ? 'Type Description & Meaning'
-                      : viewDetail.isSubcategory || viewDetail.parentId
-                      ? 'Vidhanam Summary & Procedure'
-                      : 'Sacred Description / Template Content'}
-                  </span>
-                  {viewDetail.description ? (
-                    <div 
-                      className="text-gray-200 leading-relaxed font-sans prose prose-invert max-w-none text-xs whitespace-pre-wrap"
-                      dangerouslySetInnerHTML={{ __html: viewDetail.description }}
-                    />
-                  ) : (
-                    <p className="text-gray-500 italic">No description provided for this record.</p>
-                  )}
                 </div>
 
-                {/* Subcategories if top category */}
-                {viewDetail.subcategories && viewDetail.subcategories.length > 0 && (
-                  <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-2">
-                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                      Attached Subcategories & Chapters ({viewDetail.subcategories.length})
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                      {viewDetail.subcategories.map(sub => (
-                        <div key={sub.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#1C1C1C] border border-[#2C2C2C]">
-                          <span className="font-semibold text-gray-200">{sub.title}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-gray-400 text-[10px]">/{sub.slug}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenViewSubcategory(sub.id)}
-                              className="px-2 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 border border-sky-500/30 transition"
-                            >
-                              View
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                {/* RIGHT: Sanctum Specifications & Step Sequence Console (Green & Gold) */}
+                <div className="lg:col-span-5 space-y-5">
+                  
+                  {/* Specifications Card */}
+                  <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-5 shadow-xl space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-[#16422F]">
+                      <h3 className="text-sm font-bold text-[#FFB300] flex items-center gap-2">
+                        <Database className="w-4 h-4 text-[#FFB300]" />
+                        <span>Sanctum Specifications</span>
+                      </h3>
+                      <span className="text-xs text-[#FFB300] font-mono font-bold bg-[#061A13] px-2 py-0.5 rounded border border-[#16422F]">
+                        ID: #{viewDetail.id}
+                      </span>
                     </div>
-                  </div>
-                )}
 
-                {/* Devotional Verses & Types */}
-                {viewDetail.contents && viewDetail.contents.length > 0 && (
-                  <div className="bg-[#141414] border border-[#2C2C2C] rounded-xl p-4 space-y-2">
-                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                      Attached Devotional Types & Chants ({viewDetail.contents.length})
-                    </span>
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                      {viewDetail.contents.map(v => (
-                        <div key={v.id} className="p-3 rounded-lg bg-[#1C1C1C] border border-[#2C2C2C] space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-amber-300">{v.title}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenViewContent(v.id)}
-                              className="px-2 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 border border-sky-500/30 transition"
-                            >
-                              View Type
-                            </button>
-                          </div>
-                          {v.sacredText && <div className="text-gray-300 font-serif whitespace-pre-wrap text-xs">{v.sacredText}</div>}
-                          {v.meaning && <div className="text-gray-400 italic text-[11px]">{v.meaning}</div>}
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="bg-[#061A13] p-3 rounded-lg border border-[#16422F]">
+                        <span className="text-[10px] text-gray-400 uppercase block font-semibold">Parent Category</span>
+                        <span className="text-gray-100 font-medium">
+                          {viewDetail.parentTitle || viewDetail.parentSlug || 'Pooja Vidhanam (#113)'}
+                        </span>
+                      </div>
+                      <div className="bg-[#061A13] p-3 rounded-lg border border-[#16422F]">
+                        <span className="text-[10px] text-gray-400 uppercase block font-semibold">Total Steps / Types</span>
+                        <span className="text-[#FFB300] font-bold">
+                          {viewDetail.contents?.length || 0} Sacred Steps
+                        </span>
+                      </div>
+                      <div className="bg-[#061A13] p-3 rounded-lg border border-[#16422F]">
+                        <span className="text-[10px] text-gray-400 uppercase block font-semibold">URL Identifier</span>
+                        <span className="text-[#FFB300] font-mono">/{viewDetail.slug}</span>
+                      </div>
+                      <div className="bg-[#061A13] p-3 rounded-lg border border-[#16422F]">
+                        <span className="text-[10px] text-gray-400 uppercase block font-semibold">Content Format</span>
+                        <span className="text-emerald-400 font-medium">
+                          {viewDetail.isAudio ? '🎵 Audio Chanting' : '📜 Vidhanam Text'}
+                        </span>
+                      </div>
                     </div>
+
+                    {/* Subcategory Artwork Image Preview */}
+                    {viewDetail.imageUrl && (
+                      <div className="bg-[#061A13] border border-[#16422F] rounded-lg p-3 flex items-center gap-3">
+                        <div className="w-14 h-14 rounded-lg overflow-hidden border border-[#D4AF37]/50 flex-shrink-0 bg-neutral-900 flex items-center justify-center">
+                          <img
+                            src={viewDetail.imageUrl.startsWith('http') || viewDetail.imageUrl.startsWith('data:') 
+                              ? viewDetail.imageUrl 
+                              : `${API_ORIGIN}${viewDetail.imageUrl.startsWith('/') ? '' : '/'}${viewDetail.imageUrl}`}
+                            alt={viewDetail.title}
+                            className="w-full h-full object-cover"
+                            onError={(e: any) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Sanctum Artwork</span>
+                          <p className="text-xs font-semibold text-gray-200 truncate">{viewDetail.title}</p>
+                          <p className="text-[10px] text-gray-400 font-mono truncate">{viewDetail.imageUrl}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  {/* Multi-Language Database Translations */}
+                  {viewDetail.translations && viewDetail.translations.length > 0 && (
+                    <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-5 shadow-xl space-y-3">
+                      <span className="text-xs font-bold text-[#FFB300] uppercase tracking-wide block">
+                        Database Multi-Language Translations ({viewDetail.translations.length})
+                      </span>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {viewDetail.translations.map((tr) => (
+                          <div key={tr.code} className="p-2.5 rounded-lg bg-[#061A13] border border-[#16422F] space-y-0.5">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-[#FFB300] uppercase text-[10px]">{tr.name || tr.code}</span>
+                              <span className="font-mono text-gray-500 text-[9px]">{tr.code}</span>
+                            </div>
+                            <div className="font-semibold text-gray-200 text-xs truncate">{tr.title}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chanting Steps Sequence (Ordered) */}
+                  <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-5 shadow-xl space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#16422F]">
+                      <span className="text-xs font-bold text-gray-200 uppercase tracking-wide">
+                        Chanting Sequence &amp; Steps
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCreateType(viewDetail.id)}
+                        className="px-2.5 py-1 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] rounded-lg text-xs font-bold transition flex items-center gap-1 shadow"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Step</span>
+                      </button>
+                    </div>
+
+                    {viewDetail.contents && viewDetail.contents.length > 0 ? (
+                      <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 text-xs">
+                        {viewDetail.contents.map((step, idx) => (
+                          <div 
+                            key={step.id || idx} 
+                            className="bg-[#061A13] p-3 rounded-lg border border-[#16422F] hover:border-[#FFB300]/40 transition flex items-center justify-between gap-3 group"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-[#FFB300] font-bold text-[10px]">#{idx + 1}</span>
+                                <span className="font-semibold text-gray-100 truncate">{step.title}</span>
+                              </div>
+                              {step.sacredText && (
+                                <p className="text-gray-400 text-[11px] truncate mt-0.5">{step.sacredText}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditType(step as any)}
+                                className="p-1.5 hover:bg-[#0E2F23] rounded text-[#FFB300] transition"
+                                title="Edit this Step / Verse"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-6 text-center text-xs text-gray-400 bg-[#061A13] rounded-lg border border-[#16422F]">
+                        <BookOpen className="w-6 h-6 mx-auto mb-2 text-[#FFB300] opacity-60" />
+                        <p className="font-semibold text-gray-300">No subcategory types / verses attached yet.</p>
+                        <p className="text-[11px] text-gray-400 mt-1">Click &quot;+ Add Step&quot; above to create worship steps and recitations under this subcategory.</p>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
               </div>
+
             </div>
           )}
 
