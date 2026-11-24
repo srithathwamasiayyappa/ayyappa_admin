@@ -1031,9 +1031,13 @@ export default function EnterpriseSuperAdminDashboard() {
       return '113';
     }
     if (needle === 'stotras' || needle === 'divine-stotras' || needle === '4' || needle === '114') {
-      const sMatch = list.find(p => String(p.id) === '114' || String(p.id) === '4') || list.filter(p => p.slug === 'stotras' || p.slug === 'divine-stotras' || p.slug === 'stotramulu').sort((a, b) => (b.subcategoriesCount || 0) - (a.subcategoriesCount || 0))[0];
-      if (sMatch) return String(sMatch.id);
-      return '114';
+      const candidates = list.filter(p =>
+        String(p.id) === '4' || String(p.id) === '114' ||
+        p.slug === 'stotras' || p.slug === 'divine-stotras' || p.slug === 'stotramulu' || p.slug === 'slogans-of-sri-ayyappa-swami'
+      );
+      const activeMatch = candidates.find(p => (p.subcategoriesCount || 0) > 0) || candidates[0];
+      if (activeMatch) return String(activeMatch.id);
+      return '4';
     }
     if (needle === 'slokas' || needle === 'daily-slokas' || needle === '115') {
       const slMatch = list.find(p => String(p.id) === '115') || list.filter(p => p.slug === 'slokas' || p.slug === 'daily-slokas' || p.slug?.includes('shlok')).sort((a, b) => (b.subcategoriesCount || 0) - (a.subcategoriesCount || 0))[0];
@@ -5724,7 +5728,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         {/* Standard Sanctum Categories with Exact Target Matching */}
                         {[
                           { key: 'pooja', name: 'Pooja Vidhanam', icon: '🪔', targetSlugs: ['pooja-vidhanam', 'poojalu-vrathaalu', 'pooja'], exactId: '113' },
-                          { key: 'stotras', name: 'Divine Stotras', icon: '📜', targetSlugs: ['stotras', 'divine-stotras', 'stotramulu'], exactId: '114' },
+                          { key: 'stotras', name: 'Divine Stotras', icon: '📜', targetSlugs: ['stotras', 'divine-stotras', 'stotramulu', 'slogans-of-sri-ayyappa-swami'], exactId: '4' },
                           { key: 'slokas', name: 'Daily Slokas', icon: '📿', targetSlugs: ['slokas', 'daily-slokas'], exactId: '115' },
                           { key: 'songs', name: 'Bhajans & Songs', icon: '🎵', targetSlugs: ['songs', 'bhajans', 'bhajana-keerthanalu'], exactId: '116' },
                           { key: 'live-streams', name: 'Live Darshan', icon: '📺', targetSlugs: ['live-streams', 'live-darshan'], exactId: '117' },
@@ -5735,15 +5739,17 @@ export default function EnterpriseSuperAdminDashboard() {
                         ].map(cat => {
                           const exactMatch = parentLookupList.find(p => cat.exactId && String(p.id) === String(cat.exactId));
                           let matchedParent = exactMatch;
-                          if (!matchedParent) {
+                          if (!matchedParent || (matchedParent.subcategoriesCount || 0) === 0) {
                             const candidates = parentLookupList.filter(p =>
                               (cat.targetSlugs && cat.targetSlugs.includes(p.slug)) ||
                               p.slug === cat.key ||
                               p.slug?.startsWith(cat.key) ||
-                              p.title?.toLowerCase().includes(cat.name.toLowerCase())
+                              p.title?.toLowerCase().includes(cat.name.toLowerCase()) ||
+                              (cat.exactId && String(p.id) === String(cat.exactId))
                             );
                             if (candidates.length > 0) {
-                              matchedParent = candidates.sort((a, b) => (b.subcategoriesCount || 0) - (a.subcategoriesCount || 0))[0];
+                              const active = candidates.find(p => (p.subcategoriesCount || 0) > 0);
+                              matchedParent = active || matchedParent || candidates.sort((a, b) => (b.subcategoriesCount || 0) - (a.subcategoriesCount || 0))[0];
                             }
                           }
 
