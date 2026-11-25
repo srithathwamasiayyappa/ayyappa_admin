@@ -1342,8 +1342,16 @@ export default function EnterpriseSuperAdminDashboard() {
     try {
       const res = await fetch(`${API_BASE_URL}/categories/services`);
       const json = await res.json();
-      if (json?.data && Array.isArray(json.data)) {
+      if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
         setDevotionalServices(json.data);
+      } else {
+        const adminRes = await fetch(`${API_BASE_URL}/admin/category-services`);
+        if (adminRes.ok) {
+          const adminJson = await adminRes.json();
+          if (adminJson?.data && Array.isArray(adminJson.data)) {
+            setDevotionalServices(adminJson.data);
+          }
+        }
       }
     } catch (e) {
       console.error('Failed to load category services:', e);
@@ -4384,7 +4392,35 @@ export default function EnterpriseSuperAdminDashboard() {
               </div>
 
               {/* Devotional Services Grid Matching User Reference Image */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {loadingServices ? (
+                <div className="flex flex-col items-center justify-center p-12 bg-[#1A1A1A] rounded-2xl border border-[#2C2C2C] text-gray-400">
+                  <RefreshCw className="w-8 h-8 animate-spin text-amber-400 mb-3" />
+                  <p className="text-sm font-semibold">Loading devotional services from database...</p>
+                </div>
+              ) : devotionalServices.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-12 bg-[#1A1A1A] rounded-2xl border border-[#2C2C2C] text-center">
+                  <FolderTree className="w-12 h-12 text-amber-400/50 mb-3" />
+                  <h3 className="text-sm font-bold text-gray-200">No Devotional Services Found in Database</h3>
+                  <p className="text-xs text-gray-400 mt-1 max-w-md">
+                    The database category_services directory has not been populated yet. Click below to load or add services.
+                  </p>
+                  <div className="flex items-center gap-3 mt-4">
+                    <button
+                      onClick={loadCategoryServices}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-lg transition"
+                    >
+                      Reload from API
+                    </button>
+                    <button
+                      onClick={handleOpenCreateService}
+                      className="px-4 py-2 bg-[#252525] hover:bg-[#333333] text-gray-200 font-bold text-xs rounded-lg border border-[#3C3C3C] transition"
+                    >
+                      + Add Devotional Service
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {devotionalServices
                   .filter((s) => {
                     if (!serviceSearch.trim()) return true;
@@ -4547,7 +4583,8 @@ export default function EnterpriseSuperAdminDashboard() {
                       </div>
                     );
                   })}
-              </div>
+                </div>
+              )}
 
               {/* Empty state if search has no matches */}
               {devotionalServices.length > 0 &&
