@@ -310,19 +310,6 @@ const categoryArtworkMap: Record<string, string> = {
   donations: '/images/categories/art-donations-trans.png',
 };
 
-// 9 Core Devotional Services matching the Mobile App & Database Specification
-const DEFAULT_DEVOTIONAL_SERVICES = [
-  { id: 'pooja', serviceId: 'pooja', title: 'Pooja Vidhanam', sub: 'Step-by-step sacred rituals', icon: 'Flame', url: '/subcategories', artwork: '/images/categories/art-pooja-trans.png', displayOrder: 1, isActive: true },
-  { id: 'stotras', serviceId: 'stotras', title: 'Divine Stotras', sub: 'Sacred Hymns & Chants', icon: 'BookOpen', url: '/stotras', artwork: '/images/categories/art-stotras-trans.png', displayOrder: 2, isActive: true },
-  { id: 'slokas', serviceId: 'slokas', title: 'Daily Slokas', sub: 'Verses for Meditation', icon: 'Scroll', url: '/slokas', artwork: '/images/categories/art-slokas-trans.png', displayOrder: 3, isActive: true },
-  { id: 'songs', serviceId: 'songs', title: 'Bhajans & Songs', sub: 'Devotional Melodies', icon: 'Music', url: '/songs', artwork: '/images/categories/art-bhajans-trans.png', displayOrder: 4, isActive: true },
-  { id: 'live-streams', serviceId: 'live-streams', title: 'Live Darshan', sub: 'Daily Temple Streams', icon: 'Tv', url: '/live-streams', artwork: '/images/categories/art-live-trans.png', displayOrder: 5, isActive: true },
-  { id: 'panchangam', serviceId: 'panchangam', title: 'Panchangam', sub: 'Auspicious Timings', icon: 'Calendar', url: '/panchangam', artwork: '/images/categories/art-panchangam-trans.png', displayOrder: 6, isActive: true },
-  { id: 'festivals', serviceId: 'festivals', title: 'Temple Festivals', sub: 'Annual Celebrations', icon: 'Sparkles', url: '/festivals', artwork: '/images/categories/art-stotras-trans.png', displayOrder: 7, isActive: true },
-  { id: 'temples', serviceId: 'temples', title: 'Sacred Temples', sub: 'Shrines & Pilgrimages', icon: 'Landmark', url: '/temples', artwork: '/images/categories/art-temples-trans.png', displayOrder: 8, isActive: true },
-  { id: 'donations', serviceId: 'donations', title: 'Annadanam Seva', sub: 'Meal Offering & Seva', icon: 'HeartHandshake', url: '/donations', artwork: '/images/categories/art-donations-trans.png', displayOrder: 9, isActive: true },
-];
-
 const resolveArtworkUrl = (url?: string) => {
   if (!url || !url.trim()) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
@@ -676,8 +663,8 @@ export default function EnterpriseSuperAdminDashboard() {
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
 
-  // Devotional Services State (from /categories/services API, matching mobile app specification)
-  const [devotionalServices, setDevotionalServices] = useState<any[]>(DEFAULT_DEVOTIONAL_SERVICES);
+  // Devotional Services State (strictly fetched from DB via API, zero mock/fake data)
+  const [devotionalServices, setDevotionalServices] = useState<any[]>([]);
   const [loadingServices, setLoadingServices] = useState<boolean>(false);
   const [serviceSearch, setServiceSearch] = useState<string>('');
   const [selectedViewService, setSelectedViewService] = useState<any | null>(null);
@@ -1369,10 +1356,10 @@ export default function EnterpriseSuperAdminDashboard() {
           return;
         }
       }
-      setDevotionalServices(DEFAULT_DEVOTIONAL_SERVICES);
+      setDevotionalServices([]);
     } catch (e) {
       console.warn('Notice loading category services:', e);
-      setDevotionalServices(DEFAULT_DEVOTIONAL_SERVICES);
+      setDevotionalServices([]);
     } finally {
       setLoadingServices(false);
     }
