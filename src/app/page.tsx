@@ -4947,8 +4947,8 @@ export default function EnterpriseSuperAdminDashboard() {
                           loadCategoryServices(1, serviceSearch, 'all', serviceLimit);
                         }}
                         className={`px-3 py-1 rounded text-xs font-semibold transition ${serviceStatusFilter === 'all'
-                            ? 'bg-[#FFB300] text-black shadow'
-                            : 'text-gray-400 hover:text-gray-200'
+                          ? 'bg-[#FFB300] text-black shadow'
+                          : 'text-gray-400 hover:text-gray-200'
                           }`}
                       >
                         All
@@ -4960,8 +4960,8 @@ export default function EnterpriseSuperAdminDashboard() {
                           loadCategoryServices(1, serviceSearch, 'active', serviceLimit);
                         }}
                         className={`px-3 py-1 rounded text-xs font-semibold transition ${serviceStatusFilter === 'active'
-                            ? 'bg-emerald-600 text-white shadow'
-                            : 'text-gray-400 hover:text-gray-200'
+                          ? 'bg-emerald-600 text-white shadow'
+                          : 'text-gray-400 hover:text-gray-200'
                           }`}
                       >
                         Active
@@ -4973,8 +4973,8 @@ export default function EnterpriseSuperAdminDashboard() {
                           loadCategoryServices(1, serviceSearch, 'inactive', serviceLimit);
                         }}
                         className={`px-3 py-1 rounded text-xs font-semibold transition ${serviceStatusFilter === 'inactive'
-                            ? 'bg-rose-600 text-white shadow'
-                            : 'text-gray-400 hover:text-gray-200'
+                          ? 'bg-rose-600 text-white shadow'
+                          : 'text-gray-400 hover:text-gray-200'
                           }`}
                       >
                         Inactive
@@ -5147,8 +5147,8 @@ export default function EnterpriseSuperAdminDashboard() {
                               <td className="py-3 px-4 text-center">
                                 <span
                                   className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${service.isActive !== false
-                                      ? 'bg-emerald-950/60 border border-emerald-800/50 text-emerald-300'
-                                      : 'bg-gray-800/60 border border-gray-700/50 text-gray-400'
+                                    ? 'bg-emerald-950/60 border border-emerald-800/50 text-emerald-300'
+                                    : 'bg-gray-800/60 border border-gray-700/50 text-gray-400'
                                     }`}
                                 >
                                   <span
@@ -5863,40 +5863,42 @@ export default function EnterpriseSuperAdminDashboard() {
 
           {/* IN-PAGE NORMAL PAGE MODE: VIEW DETAILS (SANCTUM GREEN & GOLD SACRED PREVIEW) */}
           {pageMode === 'VIEW_CATEGORY' && viewDetail && (
-            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {/* Top Navigation: Back to List on top of the card */}
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPageMode('LIST');
+                    setViewDetail(null);
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#0D2E21] hover:bg-[#133F2E] text-gray-200 hover:text-white text-xs font-semibold transition inline-flex items-center gap-2 border border-[#1E5C41] shadow hover:border-[#FFB300]/50"
+                >
+                  <ArrowLeft className="w-4 h-4 text-[#FFB300]" />
+                  <span>Back to List</span>
+                </button>
+              </div>
+
               {/* In-page Header: Logo Colors Sanctum Green & Divine Gold */}
               <div className="bg-[#071C14] rounded-xl border border-[#1A4E38] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPageMode('LIST');
-                      setViewDetail(null);
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-[#0D2E21] hover:bg-[#133F2E] text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-[#1E5C41] shadow"
-                  >
-                    <ArrowLeft className="w-4 h-4 text-[#FFB300]" />
-                    <span>Back to List</span>
-                  </button>
-                  <div>
-                    <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-[#FFB300]" />
-                      <span>
-                        {viewDetail.isType
-                          ? 'Devotional Subcategory Type / Sacred Verse'
-                          : viewDetail.isSubcategory || viewDetail.parentId
-                            ? 'Devotional Subcategory Sanctum Details'
-                            : 'Devotional Master Category'}
-                      </span>
-                    </h3>
-                    <p className="text-xs text-emerald-400/80">
+                <div>
+                  <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#FFB300]" />
+                    <span>
                       {viewDetail.isType
-                        ? `Type DB Record #${viewDetail.id} — Linked to Subcategory`
+                        ? 'Devotional Subcategory Type / Sacred Verse'
                         : viewDetail.isSubcategory || viewDetail.parentId
-                          ? `Subcategory Record #${viewDetail.id} — Live Sanctum Worship Flow`
-                          : `Master Category Record #${viewDetail.id}`}
-                    </p>
-                  </div>
+                          ? 'Devotional Subcategory Sanctum Details'
+                          : 'Devotional Master Category'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-emerald-400/80">
+                    {viewDetail.isType
+                      ? `Type DB Record #${viewDetail.id} — Linked to Subcategory`
+                      : viewDetail.isSubcategory || viewDetail.parentId
+                        ? `Subcategory Record #${viewDetail.id} — Live Sanctum Worship Flow`
+                        : `Master Category Record #${viewDetail.id}`}
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
@@ -6493,27 +6495,29 @@ export default function EnterpriseSuperAdminDashboard() {
 
           {/* IN-PAGE NORMAL PAGE MODE: CREATE / EDIT CATEGORY (SANCTUM GREEN & GOLD LAYOUT MATCHING VIEW DETAILED) */}
           {pageMode === 'EDIT_CATEGORY' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {/* Top Navigation: Back to List on top of the card */}
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setPageMode('LIST')}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#0D2E21] hover:bg-[#133F2E] text-gray-200 hover:text-white text-xs font-semibold transition inline-flex items-center gap-2 border border-[#1E5C41] shadow hover:border-[#FFB300]/50"
+                >
+                  <ArrowLeft className="w-4 h-4 text-[#FFB300]" />
+                  <span>Back to List</span>
+                </button>
+              </div>
+
               {/* Header: Sanctum Green & Divine Gold */}
               <div className="bg-[#071C14] rounded-xl border border-[#1A4E38] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setPageMode('LIST')}
-                    className="px-3 py-1.5 rounded-lg bg-[#0D2E21] hover:bg-[#133F2E] text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-[#1E5C41] shadow"
-                  >
-                    <ArrowLeft className="w-4 h-4 text-[#FFB300]" />
-                    <span>Back to Categories</span>
-                  </button>
-                  <div>
-                    <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-[#FFB300]" />
-                      <span>{editingId ? 'Edit Devotional Category' : 'Create New Devotional Category'}</span>
-                    </h3>
-                    <p className="text-xs text-emerald-400/80">
-                      {editingId ? `Master Category Record #${editingId} — Sanctum Pillar` : 'New Master Category Record'}
-                    </p>
-                  </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#FFB300]" />
+                    <span>{editingId ? 'Edit Devotional Category' : 'Create New Devotional Category'}</span>
+                  </h3>
+                  <p className="text-xs text-emerald-400/80">
+                    {editingId ? `Master Category Record #${editingId} — Sanctum Pillar` : 'New Master Category Record'}
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
@@ -6753,30 +6757,33 @@ export default function EnterpriseSuperAdminDashboard() {
 
           {/* IN-PAGE NORMAL PAGE MODE: CREATE / EDIT SUBCATEGORY (SANCTUM GREEN & GOLD LAYOUT MATCHING VIEW DETAILED) */}
           {pageMode === 'EDIT_SUBCATEGORY' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {/* Top Navigation: Back to List on top of the card */}
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPageMode('LIST');
+                    setEditingSubId(null);
+                    setViewDetail(null);
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#0D2E21] hover:bg-[#133F2E] text-gray-200 hover:text-white text-xs font-semibold transition inline-flex items-center gap-2 border border-[#1E5C41] shadow hover:border-[#FFB300]/50"
+                >
+                  <ArrowLeft className="w-4 h-4 text-[#FFB300]" />
+                  <span>Back to List</span>
+                </button>
+              </div>
+
               {/* Header: Sanctum Green & Divine Gold */}
               <div className="bg-[#071C14] rounded-xl border border-[#1A4E38] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPageMode('LIST');
-                      setViewDetail(null);
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-[#0D2E21] hover:bg-[#133F2E] text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-[#1E5C41] shadow"
-                  >
-                    <ArrowLeft className="w-4 h-4 text-[#FFB300]" />
-                    <span>Back to List</span>
-                  </button>
-                  <div>
-                    <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-[#FFB300]" />
-                      <span>{editingSubId ? 'Edit Devotional Subcategory Sanctum Details' : 'Create Devotional Subcategory'}</span>
-                    </h3>
-                    <p className="text-xs text-emerald-400/80">
-                      {editingSubId ? `Subcategory Record #${editingSubId} — Live Sanctum Worship Flow` : 'New Sacred Subcategory Record'}
-                    </p>
-                  </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#FFB300]" />
+                    <span>{editingSubId ? 'Edit Devotional Subcategory Sanctum Details' : 'Create Devotional Subcategory'}</span>
+                  </h3>
+                  <p className="text-xs text-emerald-400/80">
+                    {editingSubId ? `Subcategory Record #${editingSubId} — Live Sanctum Worship Flow` : 'New Sacred Subcategory Record'}
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
@@ -6809,7 +6816,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     className="flex items-center gap-1.5 px-5 py-2 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] font-bold text-xs rounded-lg transition shadow-lg shadow-amber-500/20"
                   >
                     <Save className="w-3.5 h-3.5" />
-                    <span>Save Subcategory to MySQL</span>
+                    <span>Save</span>
                   </button>
                 </div>
               </div>
@@ -7154,7 +7161,7 @@ export default function EnterpriseSuperAdminDashboard() {
                           className="px-4 py-1.5 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] rounded-lg text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
                         >
                           <Save className="w-3.5 h-3.5" />
-                          <span>Save Subcategory to MySQL</span>
+                          <span>Save</span>
                         </button>
                       </div>
                     </div>
@@ -7289,27 +7296,29 @@ export default function EnterpriseSuperAdminDashboard() {
 
           {/* IN-PAGE NORMAL PAGE MODE: CREATE / EDIT SUBCATEGORY TYPE (SANCTUM GREEN & GOLD LAYOUT MATCHING VIEW DETAILED) */}
           {pageMode === 'EDIT_TYPE' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {/* Top Navigation: Back to List on top of the card */}
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setPageMode('LIST')}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#0D2E21] hover:bg-[#133F2E] text-gray-200 hover:text-white text-xs font-semibold transition inline-flex items-center gap-2 border border-[#1E5C41] shadow hover:border-[#FFB300]/50"
+                >
+                  <ArrowLeft className="w-4 h-4 text-[#FFB300]" />
+                  <span>Back to List</span>
+                </button>
+              </div>
+
               {/* Header: Sanctum Green & Divine Gold */}
               <div className="bg-[#071C14] rounded-xl border border-[#1A4E38] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setPageMode('LIST')}
-                    className="px-3 py-1.5 rounded-lg bg-[#0D2E21] hover:bg-[#133F2E] text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-[#1E5C41] shadow"
-                  >
-                    <ArrowLeft className="w-4 h-4 text-[#FFB300]" />
-                    <span>Back to Types</span>
-                  </button>
-                  <div>
-                    <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-[#FFB300]" />
-                      <span>{editingTypeId ? 'Edit Subcategory Type / Sacred Verse' : 'Create Subcategory Type / Sacred Verse'}</span>
-                    </h3>
-                    <p className="text-xs text-emerald-400/80">
-                      {editingTypeId ? `Type DB Record #${editingTypeId} — Chanting Verse &amp; Spiritual Meaning` : 'New Sacred Chanting Verse Record'}
-                    </p>
-                  </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#FFB300] flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-[#FFB300]" />
+                    <span>{editingTypeId ? 'Edit Subcategory Type / Sacred Verse' : 'Create Subcategory Type / Sacred Verse'}</span>
+                  </h3>
+                  <p className="text-xs text-emerald-400/80">
+                    {editingTypeId ? `Type DB Record #${editingTypeId} — Chanting Verse &amp; Spiritual Meaning` : 'New Sacred Chanting Verse Record'}
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
