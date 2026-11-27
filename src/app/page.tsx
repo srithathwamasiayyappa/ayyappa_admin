@@ -66,7 +66,9 @@ import {
   Info,
   Phone,
   Mail,
-  LogIn
+  LogIn,
+  Table,
+  LayoutGrid
 } from 'lucide-react';
 import { SplashScreenManager } from './components/SplashScreenManager';
 import { RichTextEditor } from './components/RichTextEditor';
@@ -749,6 +751,7 @@ export default function EnterpriseSuperAdminDashboard() {
   const [devotionalServices, setDevotionalServices] = useState<any[]>([]);
   const [loadingServices, setLoadingServices] = useState<boolean>(false);
   const [serviceSearch, setServiceSearch] = useState<string>('');
+  const [serviceViewMode, setServiceViewMode] = useState<'table' | 'grid'>('table');
   const [selectedViewService, setSelectedViewService] = useState<any | null>(null);
   const [isViewServiceModalOpen, setIsViewServiceModalOpen] = useState(false);
   const [editingCategoryService, setEditingCategoryService] = useState<any | null>(null);
@@ -4812,6 +4815,36 @@ export default function EnterpriseSuperAdminDashboard() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3">
+                    {/* View Mode Toggle: Table vs Cards */}
+                    <div className="flex items-center bg-[#141414] border border-[#2C2C2C] rounded-lg p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setServiceViewMode('table')}
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition ${
+                          serviceViewMode === 'table'
+                            ? 'bg-[#FFB300] text-black shadow'
+                            : 'text-gray-400 hover:text-gray-200'
+                        }`}
+                        title="Table View"
+                      >
+                        <Table className="w-3.5 h-3.5" />
+                        <span>Table</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setServiceViewMode('grid')}
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition ${
+                          serviceViewMode === 'grid'
+                            ? 'bg-[#FFB300] text-black shadow'
+                            : 'text-gray-400 hover:text-gray-200'
+                        }`}
+                        title="Card Grid View"
+                      >
+                        <LayoutGrid className="w-3.5 h-3.5" />
+                        <span>Grid</span>
+                      </button>
+                    </div>
+
                     <button
                       onClick={loadCategoryServices}
                       disabled={loadingServices}
@@ -4874,6 +4907,207 @@ export default function EnterpriseSuperAdminDashboard() {
                     >
                       + Add Devotional Service
                     </button>
+                  </div>
+                </div>
+              ) : serviceViewMode === 'table' ? (
+                /* Devotional Services Clean Table Format */
+                <div className="bg-[#1E1E1E] rounded-xl border border-[#2C2C2C] overflow-hidden shadow-2xl">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#151515] border-b border-[#2C2C2C] text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                          <th className="py-3 px-4 w-14 text-center">#</th>
+                          <th className="py-3 px-4 w-28">Icon & Art</th>
+                          <th className="py-3 px-4 min-w-[220px]">Devotional Service</th>
+                          <th className="py-3 px-4 w-32">Canonical Key</th>
+                          <th className="py-3 px-4 w-32">Route Path</th>
+                          <th className="py-3 px-4 w-36 text-center">Subcategories</th>
+                          <th className="py-3 px-4 w-28 text-center">Status</th>
+                          <th className="py-3 px-4 min-w-[220px] text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#282828]">
+                        {devotionalServices
+                          .filter((s) => {
+                            if (!serviceSearch.trim()) return true;
+                            const q = serviceSearch.toLowerCase();
+                            const matchTitle = s.title?.toLowerCase().includes(q);
+                            const matchSub = s.sub?.toLowerCase().includes(q);
+                            const matchId = (s.serviceId || s.id)?.toLowerCase().includes(q);
+                            return matchTitle || matchSub || matchId;
+                          })
+                          .map((service, index) => {
+                            const sKey = service.serviceId || service.id;
+                            const artworkSrc = service.artwork || categoryArtworkMap[sKey] || categoryArtworkMap[service.id];
+                            const subCount = parentCategoryCounts[sKey] ?? parentCategoryCounts[service.id] ?? 0;
+                            return (
+                              <tr
+                                key={service.id || service.serviceId || index}
+                                onClick={() => handleOpenViewService(service)}
+                                className="hover:bg-neutral-800/40 transition-colors group cursor-pointer"
+                              >
+                                {/* # Order */}
+                                <td className="py-3 px-4 text-center">
+                                  <span className="text-[11px] px-2 py-0.5 rounded bg-neutral-800/80 border border-neutral-700/60 text-amber-400 font-mono font-bold">
+                                    #{service.displayOrder || index + 1}
+                                  </span>
+                                </td>
+
+                                {/* Icon & Art */}
+                                <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#2A2A2A] to-[#141414] border border-[#3A3A3A] group-hover:border-[#FFB300]/40 flex items-center justify-center flex-shrink-0 shadow-inner">
+                                      {renderServiceIcon(service.icon || service.id)}
+                                    </div>
+                                    {artworkSrc ? (
+                                      <div className="relative group/art w-9 h-9 rounded-lg bg-neutral-900 border border-neutral-800 overflow-hidden flex items-center justify-center flex-shrink-0">
+                                        <img
+                                          src={resolveArtworkUrl(artworkSrc)}
+                                          alt={service.title}
+                                          className="w-7 h-7 object-contain opacity-90 group-hover/art:opacity-100 transition"
+                                          onError={(e: any) => { e.currentTarget.style.display = 'none'; }}
+                                        />
+                                        <label
+                                          className="absolute inset-0 bg-black/75 opacity-0 group-hover/art:opacity-100 flex items-center justify-center cursor-pointer transition"
+                                          title="Upload / Change Image"
+                                        >
+                                          <Upload className="w-3.5 h-3.5 text-amber-400" />
+                                          <input
+                                            type="file"
+                                            accept="image/png, image/jpeg, image/webp"
+                                            onChange={(e) => handleQuickServiceArtworkUpload(service.id || service.serviceId, e)}
+                                            className="hidden"
+                                          />
+                                        </label>
+                                      </div>
+                                    ) : (
+                                      <label
+                                        className="w-9 h-9 rounded-lg bg-neutral-900 border border-dashed border-neutral-700 hover:border-amber-400 text-gray-500 hover:text-amber-400 flex items-center justify-center cursor-pointer transition flex-shrink-0"
+                                        title="Upload Image"
+                                      >
+                                        <Upload className="w-3.5 h-3.5" />
+                                        <input
+                                          type="file"
+                                          accept="image/png, image/jpeg, image/webp"
+                                          onChange={(e) => handleQuickServiceArtworkUpload(service.id || service.serviceId, e)}
+                                          className="hidden"
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* Devotional Service Title & Sub */}
+                                <td className="py-3 px-4">
+                                  <div className="flex flex-col">
+                                    <span className="font-bold text-gray-100 group-hover:text-[#FFB300] transition text-sm">
+                                      {service.title}
+                                    </span>
+                                    <span className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">
+                                      {service.sub || 'Step-by-step sacred rituals'}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {/* Canonical Key */}
+                                <td className="py-3 px-4">
+                                  <span className="text-[11px] font-mono px-2 py-0.5 bg-[#141414] border border-[#2C2C2C] text-amber-400/90 rounded">
+                                    {sKey}
+                                  </span>
+                                </td>
+
+                                {/* Route */}
+                                <td className="py-3 px-4">
+                                  <span className="text-[11px] font-mono px-2 py-0.5 bg-[#141414] border border-[#2C2C2C] text-gray-400 rounded">
+                                    {service.url}
+                                  </span>
+                                </td>
+
+                                {/* Subcategories count & link */}
+                                <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedParentCategoryFilter(sKey);
+                                      loadSubcategories(1, '', selectedLang, sKey);
+                                      setActiveTab('subcategories');
+                                    }}
+                                    title="View subcategories in this category"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 rounded-full font-semibold text-[11px] transition shadow-sm hover:scale-105"
+                                  >
+                                    <Layers className="w-3 h-3 text-amber-400" />
+                                    <span>{subCount} Subcategories</span>
+                                  </button>
+                                </td>
+
+                                {/* Status */}
+                                <td className="py-3 px-4 text-center">
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
+                                      service.isActive !== false
+                                        ? 'bg-emerald-950/60 border border-emerald-800/50 text-emerald-300'
+                                        : 'bg-gray-800/60 border border-gray-700/50 text-gray-400'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full ${
+                                        service.isActive !== false ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'
+                                      }`}
+                                    />
+                                    {service.isActive !== false ? 'Active' : 'Inactive'}
+                                  </span>
+                                </td>
+
+                                {/* Actions */}
+                                <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <label
+                                      title="Upload / Replace Category Image"
+                                      className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-emerald-400 rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition cursor-pointer"
+                                    >
+                                      <Upload className="w-3 h-3 text-emerald-400" />
+                                      <span>Image</span>
+                                      <input
+                                        type="file"
+                                        accept="image/png, image/jpeg, image/webp"
+                                        onChange={(e) => handleQuickServiceArtworkUpload(service.id || service.serviceId, e)}
+                                        className="hidden"
+                                      />
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleOpenViewService(service, e)}
+                                      title="View Details by ID"
+                                      className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-white rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition"
+                                    >
+                                      <Eye className="w-3 h-3 text-sky-400" />
+                                      <span>View</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleOpenEditService(service, e)}
+                                      title="Edit Devotional Service"
+                                      className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-amber-400 rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition"
+                                    >
+                                      <Edit3 className="w-3 h-3 text-amber-400" />
+                                      <span>Edit</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleDeleteCategoryService(service, e)}
+                                      title="Delete Devotional Service"
+                                      className="px-2 py-1 bg-[#141414] hover:bg-rose-950/40 text-gray-300 hover:text-red-400 rounded border border-[#2C2C2C] hover:border-red-900/40 flex items-center gap-1 text-[11px] font-semibold transition"
+                                    >
+                                      <Trash2 className="w-3 h-3 text-red-400" />
+                                      <span>Delete</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               ) : (
