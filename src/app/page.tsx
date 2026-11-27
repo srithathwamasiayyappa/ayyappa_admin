@@ -6093,16 +6093,6 @@ export default function EnterpriseSuperAdminDashboard() {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setPageMode('LIST');
-                      setViewDetail(null);
-                    }}
-                    className="px-4 py-2 bg-[#0D2E21] hover:bg-[#133F2E] border border-[#1E5C41] rounded-lg text-gray-200 font-semibold text-xs transition"
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="button"
                     onClick={handleSaveSubcategory}
                     className="flex items-center gap-1.5 px-5 py-2 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] font-bold text-xs rounded-lg transition shadow-lg shadow-amber-500/20"
                   >
