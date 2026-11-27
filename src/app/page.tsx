@@ -75,7 +75,10 @@ import { TranslationModal, FieldDefinition } from './components/TranslationModal
 
 interface DeityItem {
   id: string;
+  slug?: string;
   name: string;
+  englishName?: string;
+  teluguName?: string;
   alternateName?: string;
   category: 'God' | 'Goddess' | 'Avatar' | 'Cosmic Form' | string;
   vahana?: string;
@@ -431,21 +434,22 @@ export default function EnterpriseSuperAdminDashboard() {
   const [editingDeity, setEditingDeity] = useState<Partial<DeityItem> | null>(null);
   const [isDeityModalOpen, setIsDeityModalOpen] = useState<boolean>(false);
 
-  const loadDeities = useCallback(async () => {
+  const loadDeities = useCallback(async (lang?: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/deities`);
+      const targetLang = lang || 'te';
+      const res = await fetch(`${API_BASE_URL}/admin/deities?lang=${targetLang}`);
       if (res.ok) {
         const data = await res.json();
-        if (data && data.data && Array.isArray(data.data)) {
-          setDeities(data.data);
-          return;
-        }
+        const list = (data && Array.isArray(data.data)) ? data.data : (Array.isArray(data) ? data : []);
+        setDeities(list);
+        return list;
       }
       setDeities([]);
     } catch (err) {
       console.error('Failed to load deities from DB:', err);
       setDeities([]);
     }
+    return [];
   }, []);
 
   const handleOpenCreateDeity = () => {
@@ -1893,6 +1897,7 @@ export default function EnterpriseSuperAdminDashboard() {
     loadStats();
     loadParentLookup(selectedLang);
     loadAllSubcategoriesList(selectedLang);
+    loadDeities(selectedLang);
     loadLanguages();
     loadAppLogo();
     loadTicker();
@@ -1909,6 +1914,8 @@ export default function EnterpriseSuperAdminDashboard() {
       loadCategories(page, searchQuery, selectedLang, isAudioFilter);
     } else if (activeTab === 'subcategories') {
       loadSubcategories(1, searchQuery, selectedLang, selectedParentCategoryFilter);
+      loadParentLookup(selectedLang);
+      loadDeities(selectedLang);
     } else if (activeTab === 'devotional_services') {
       loadCategoryServices();
     } else if (activeTab === 'temples' || (activeTab === 'categories' && selectedCategorySubtitle === 'temples')) {
@@ -2061,6 +2068,8 @@ export default function EnterpriseSuperAdminDashboard() {
   // Dynamic Language Switcher for Edit Subcategory (Fetches translation from DB via API; no mock fallback)
   const handleEditSubcategoryChangeLang = async (langCode: string) => {
     setSelectedLang(langCode);
+    loadParentLookup(langCode);
+    loadDeities(langCode);
     if (!editingSubId) return;
     setLoading(true);
     try {
@@ -2292,24 +2301,53 @@ export default function EnterpriseSuperAdminDashboard() {
   };
 
   // SUBCATEGORY & CHAPTER ACTIONS (Full Page Mode)
-  const handleOpenCreateSubcategory = (preselectedParentId?: any) => {
+  const handleOpenCreateSubcategory = async (preselectedParentId?: any) => {
     setEditingSubId(null);
     setSubFormTitle('');
     setSubFormSlug('');
-    setSubFormDeityId('ayyappa');
-    let targetParent = preselectedParentId;
-    if (!targetParent && selectedParentCategoryFilter !== 'all') {
-      const match = parentLookupList.find(p => p.slug === selectedParentCategoryFilter || String(p.id) === String(selectedParentCategoryFilter));
-      if (match) targetParent = match.id;
-    }
-    if (!targetParent && parentLookupList.length > 0) {
-      targetParent = parentLookupList[0].id;
-    }
-    setSubFormParentId(targetParent || '');
     setSubFormDescription('');
     setSubFormImageUrl('');
     setIsSubModalOpen(true);
     setPageMode('EDIT_SUBCATEGORY');
+
+    let availableParents = parentLookupList;
+    let availableDeities = deities;
+
+    // Dynamically fetch latest Parent Categories & Gods / Goddesses directly from DB via API
+    try {
+      const [parentsRes, deitiesRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/admin/categories?limit=100&lang=${selectedLang}`).then(r => r.json()).catch(() => null),
+        fetch(`${API_BASE_URL}/admin/deities?lang=${selectedLang}`).then(r => r.json()).catch(() => null)
+      ]);
+
+      if (parentsRes && Array.isArray(parentsRes.data) && parentsRes.data.length > 0) {
+        availableParents = parentsRes.data;
+        setParentLookupList(parentsRes.data);
+        parentLookupListRef.current = parentsRes.data;
+      }
+      if (deitiesRes && Array.isArray(deitiesRes.data) && deitiesRes.data.length > 0) {
+        availableDeities = deitiesRes.data;
+        setDeities(deitiesRes.data);
+      }
+    } catch (err) {
+      console.error('Failed to dynamically fetch parents or deities:', err);
+    }
+
+    let targetParent = preselectedParentId;
+    if (!targetParent && selectedParentCategoryFilter !== 'all') {
+      const match = availableParents.find(p => p.slug === selectedParentCategoryFilter || String(p.id) === String(selectedParentCategoryFilter));
+      if (match) targetParent = match.id;
+    }
+    if (!targetParent && availableParents.length > 0) {
+      targetParent = availableParents[0].id;
+    }
+    setSubFormParentId(targetParent || '');
+
+    if (availableDeities.length > 0) {
+      setSubFormDeityId(availableDeities[0].slug || availableDeities[0].id || 'ayyappa');
+    } else {
+      setSubFormDeityId('ayyappa');
+    }
   };
 
   const handleOpenEditSubcategory = async (item: SubcategoryItem) => {
@@ -2323,7 +2361,10 @@ export default function EnterpriseSuperAdminDashboard() {
     setIsSubModalOpen(true);
     setPageMode('EDIT_SUBCATEGORY');
 
-    // Dynamically fetch translation for currently active language directly from DB
+    // Dynamically refresh Parent Categories, Deities, and Subcategory detail from DB via API
+    loadParentLookup(selectedLang);
+    loadDeities(selectedLang);
+
     try {
       const res = await fetch(`${API_BASE_URL}/admin/subcategories/${item.id}?lang=${selectedLang}`);
       const json = await res.json();
@@ -6303,17 +6344,22 @@ export default function EnterpriseSuperAdminDashboard() {
                     </div>
 
                     <div className="space-y-3 text-xs">
-                      {/* Parent Category & God / Goddess (Deity) Selection */}
+                      {/* Parent Category & God / Goddess (Deity) Selection - Pure DB-driven from API */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="bg-[#061A13] p-3 rounded-lg border border-[#16422F]">
-                          <label className="text-[10px] text-gray-400 uppercase block font-semibold mb-1">Parent Category *</label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] text-gray-400 uppercase font-semibold">Parent Category *</label>
+                            <span className="text-[9px] text-emerald-400 font-mono">
+                              {parentLookupList.length > 0 ? `${parentLookupList.length} in DB` : 'Fetching...'}
+                            </span>
+                          </div>
                           <select
                             value={subFormParentId}
                             onChange={(e) => setSubFormParentId(Number(e.target.value))}
                             className="w-full bg-[#071C14] border border-[#1E5C41] rounded px-2.5 py-1.5 text-xs text-[#FEF08A] font-medium focus:outline-none focus:border-[#FFB300]"
                           >
-                            <option value="">-- Choose Parent --</option>
-                            {parentLookupList.map(p => (
+                            <option value="">-- Select Parent Category from DB --</option>
+                            {parentLookupList.map((p: any) => (
                               <option key={p.id} value={p.id}>
                                 {p.parentId ? `└── ${p.title}` : p.title}
                               </option>
@@ -6322,35 +6368,37 @@ export default function EnterpriseSuperAdminDashboard() {
                         </div>
 
                         <div className="bg-[#061A13] p-3 rounded-lg border border-[#16422F]">
-                          <label className="text-[10px] text-[#FFB300] uppercase block font-semibold mb-1 flex items-center justify-between">
-                            <span className="flex items-center gap-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] text-[#FFB300] uppercase font-semibold flex items-center gap-1">
                               <span>🕉️</span>
                               <span>God / Goddess (Deity) *</span>
+                            </label>
+                            <span className="text-[9px] text-emerald-400 font-mono">
+                              {deities.length > 0 ? `${deities.length} in DB` : 'Fetching...'}
                             </span>
-                            <span className="text-[9px] text-emerald-400 font-mono">User Filter</span>
-                          </label>
+                          </div>
                           <select
                             value={subFormDeityId}
                             onChange={(e) => setSubFormDeityId(e.target.value)}
                             className="w-full bg-[#071C14] border border-[#1E5C41] rounded px-2.5 py-1.5 text-xs text-[#FEF08A] font-semibold focus:outline-none focus:border-[#FFB300]"
                           >
-                            <option value="ayyappa">🛕 Lord Ayyappa (శ్రీ అయ్యప్ప స్వామి)</option>
-                            <option value="ganesha">🐘 Lord Ganesha (శ్రీ మహాగణపతి)</option>
-                            <option value="shiva">🔱 Lord Shiva (పరమశివుడు)</option>
-                            <option value="devi">🌸 Goddess Lakshmi / Durga (శ్రీ దుర్గా / లక్ష్మీ దేవి)</option>
-                            <option value="venkateswara">☀️ Lord Venkateswara (శ్రీ వేంకటేశ్వర స్వామి)</option>
-                            <option value="hanuman">🐒 Lord Hanuman (శ్రీ ఆంజనేయ స్వామి)</option>
-                            <option value="murugan">🦚 Lord Murugan (శ్రీ సుబ్రహ్మణ్య స్వామి)</option>
-                            {deities && deities
-                              .filter(d => !['ayyappa', 'ganesha', 'shiva', 'devi', 'venkateswara', 'hanuman', 'murugan'].includes(d.id.toLowerCase()))
-                              .map(d => (
-                                <option key={d.id} value={d.id}>
-                                  ✨ {d.name} {d.alternateName ? `(${d.alternateName})` : ''}
-                                </option>
-                              ))}
+                            {deities.length === 0 ? (
+                              <option value="">Loading Deities from DB...</option>
+                            ) : (
+                              deities.map((d: any) => {
+                                const dId = d.slug || d.id;
+                                const dName = d.name || d.englishName || d.id;
+                                const dAlt = (d.teluguName && d.teluguName !== dName) ? d.teluguName : (d.alternateName || '');
+                                return (
+                                  <option key={dId} value={dId}>
+                                    🕉️ {dName}{dAlt ? ` (${dAlt})` : ''}
+                                  </option>
+                                );
+                              })
+                            )}
                           </select>
                           <span className="text-[10px] text-emerald-400/80 block mt-1 font-mono">
-                            Used in User Panel & Mobile App for deity filtering
+                            Dynamically fetched from DB (`/admin/deities`) via API
                           </span>
                         </div>
                       </div>
@@ -10076,7 +10124,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   </div>
                   <div className="flex items-center gap-3">
                     <button
-                      onClick={loadDeities}
+                      onClick={() => loadDeities()}
                       className="px-3.5 py-2 bg-[#141414] hover:bg-[#252525] border border-[#2C2C2C] rounded-lg text-xs font-semibold flex items-center gap-1.5 text-gray-300 transition"
                     >
                       <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
