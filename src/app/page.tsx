@@ -372,7 +372,7 @@ const getStoredTab = (): string => {
     if (urlTab && VALID_ADMIN_TABS.has(urlTab)) return urlTab;
     const localTab = localStorage.getItem('ayyappa_admin_active_tab');
     if (localTab && VALID_ADMIN_TABS.has(localTab)) return localTab;
-  } catch (_) {}
+  } catch (_) { }
   return 'dashboard';
 };
 
@@ -4946,11 +4946,10 @@ export default function EnterpriseSuperAdminDashboard() {
                           setServiceStatusFilter('all');
                           loadCategoryServices(1, serviceSearch, 'all', serviceLimit);
                         }}
-                        className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                          serviceStatusFilter === 'all'
+                        className={`px-3 py-1 rounded text-xs font-semibold transition ${serviceStatusFilter === 'all'
                             ? 'bg-[#FFB300] text-black shadow'
                             : 'text-gray-400 hover:text-gray-200'
-                        }`}
+                          }`}
                       >
                         All
                       </button>
@@ -4960,11 +4959,10 @@ export default function EnterpriseSuperAdminDashboard() {
                           setServiceStatusFilter('active');
                           loadCategoryServices(1, serviceSearch, 'active', serviceLimit);
                         }}
-                        className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                          serviceStatusFilter === 'active'
+                        className={`px-3 py-1 rounded text-xs font-semibold transition ${serviceStatusFilter === 'active'
                             ? 'bg-emerald-600 text-white shadow'
                             : 'text-gray-400 hover:text-gray-200'
-                        }`}
+                          }`}
                       >
                         Active
                       </button>
@@ -4974,11 +4972,10 @@ export default function EnterpriseSuperAdminDashboard() {
                           setServiceStatusFilter('inactive');
                           loadCategoryServices(1, serviceSearch, 'inactive', serviceLimit);
                         }}
-                        className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                          serviceStatusFilter === 'inactive'
+                        className={`px-3 py-1 rounded text-xs font-semibold transition ${serviceStatusFilter === 'inactive'
                             ? 'bg-rose-600 text-white shadow'
                             : 'text-gray-400 hover:text-gray-200'
-                        }`}
+                          }`}
                       >
                         Inactive
                       </button>
@@ -5034,64 +5031,50 @@ export default function EnterpriseSuperAdminDashboard() {
                       </thead>
                       <tbody className="divide-y divide-[#282828]">
                         {devotionalServices.map((service, index) => {
-                            const sKey = (service.serviceId || service.id || '').toLowerCase();
-                            const artworkSrc = service.artwork || categoryArtworkMap[sKey] || categoryArtworkMap[service.id];
-                            const subCount = service.subcategoriesCount !== undefined
-                              ? service.subcategoriesCount
-                              : (parentCategoryCounts[sKey] ??
-                                 (sKey === 'bhajans' ? parentCategoryCounts['songs'] : undefined) ??
-                                 (sKey === 'songs' ? parentCategoryCounts['bhajans'] : undefined) ??
-                                 (sKey === 'darshan' ? parentCategoryCounts['live-streams'] : undefined) ??
-                                 (sKey === 'live-streams' ? parentCategoryCounts['darshan'] : undefined) ??
-                                 (sKey === 'annadanam' ? parentCategoryCounts['donations'] : undefined) ??
-                                 (sKey === 'donations' ? parentCategoryCounts['annadanam'] : undefined) ??
-                                 0);
-                            return (
-                              <tr
-                                key={service.id || service.serviceId || index}
-                                onClick={() => handleOpenViewService(service)}
-                                className="hover:bg-neutral-800/40 transition-colors group cursor-pointer"
-                              >
-                                {/* # Order */}
-                                <td className="py-3 px-4 text-center">
-                                  <span className="text-[11px] px-2 py-0.5 rounded bg-neutral-800/80 border border-neutral-700/60 text-amber-400 font-mono font-bold">
-                                    #{service.displayOrder || index + 1}
-                                  </span>
-                                </td>
+                          const sKey = (service.serviceId || service.id || '').toLowerCase();
+                          const artworkSrc = service.artwork || categoryArtworkMap[sKey] || categoryArtworkMap[service.id];
+                          const subCount = service.subcategoriesCount !== undefined
+                            ? service.subcategoriesCount
+                            : (parentCategoryCounts[sKey] ??
+                              (sKey === 'bhajans' ? parentCategoryCounts['songs'] : undefined) ??
+                              (sKey === 'songs' ? parentCategoryCounts['bhajans'] : undefined) ??
+                              (sKey === 'darshan' ? parentCategoryCounts['live-streams'] : undefined) ??
+                              (sKey === 'live-streams' ? parentCategoryCounts['darshan'] : undefined) ??
+                              (sKey === 'annadanam' ? parentCategoryCounts['donations'] : undefined) ??
+                              (sKey === 'donations' ? parentCategoryCounts['annadanam'] : undefined) ??
+                              0);
+                          return (
+                            <tr
+                              key={service.id || service.serviceId || index}
+                              onClick={() => handleOpenViewService(service)}
+                              className="hover:bg-neutral-800/40 transition-colors group cursor-pointer"
+                            >
+                              {/* # Order */}
+                              <td className="py-3 px-4 text-center">
+                                <span className="text-[11px] px-2 py-0.5 rounded bg-neutral-800/80 border border-neutral-700/60 text-amber-400 font-mono font-bold">
+                                  #{service.displayOrder || index + 1}
+                                </span>
+                              </td>
 
-                                {/* Icon & Art */}
-                                <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#2A2A2A] to-[#141414] border border-[#3A3A3A] group-hover:border-[#FFB300]/40 flex items-center justify-center flex-shrink-0 shadow-inner">
-                                      {renderServiceIcon(service.icon || service.id)}
-                                    </div>
-                                    {artworkSrc ? (
-                                      <div className="relative group/art w-9 h-9 rounded-lg bg-neutral-900 border border-neutral-800 overflow-hidden flex items-center justify-center flex-shrink-0">
-                                        <img
-                                          src={resolveArtworkUrl(artworkSrc)}
-                                          alt={service.title}
-                                          className="w-7 h-7 object-contain opacity-90 group-hover/art:opacity-100 transition"
-                                          onError={(e: any) => { e.currentTarget.style.display = 'none'; }}
-                                        />
-                                        <label
-                                          className="absolute inset-0 bg-black/75 opacity-0 group-hover/art:opacity-100 flex items-center justify-center cursor-pointer transition"
-                                          title="Upload / Change Image"
-                                        >
-                                          <Upload className="w-3.5 h-3.5 text-amber-400" />
-                                          <input
-                                            type="file"
-                                            accept="image/png, image/jpeg, image/webp"
-                                            onChange={(e) => handleQuickServiceArtworkUpload(service.id || service.serviceId, e)}
-                                            className="hidden"
-                                          />
-                                        </label>
-                                      </div>
-                                    ) : (
+                              {/* Icon & Art */}
+                              <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#2A2A2A] to-[#141414] border border-[#3A3A3A] group-hover:border-[#FFB300]/40 flex items-center justify-center flex-shrink-0 shadow-inner">
+                                    {renderServiceIcon(service.icon || service.id)}
+                                  </div>
+                                  {artworkSrc ? (
+                                    <div className="relative group/art w-9 h-9 rounded-lg bg-neutral-900 border border-neutral-800 overflow-hidden flex items-center justify-center flex-shrink-0">
+                                      <img
+                                        src={resolveArtworkUrl(artworkSrc)}
+                                        alt={service.title}
+                                        className="w-7 h-7 object-contain opacity-90 group-hover/art:opacity-100 transition"
+                                        onError={(e: any) => { e.currentTarget.style.display = 'none'; }}
+                                      />
                                       <label
-                                        className="w-9 h-9 rounded-lg bg-neutral-900 border border-dashed border-neutral-700 hover:border-amber-400 text-gray-500 hover:text-amber-400 flex items-center justify-center cursor-pointer transition flex-shrink-0"
-                                        title="Upload Image"
+                                        className="absolute inset-0 bg-black/75 opacity-0 group-hover/art:opacity-100 flex items-center justify-center cursor-pointer transition"
+                                        title="Upload / Change Image"
                                       >
-                                        <Upload className="w-3.5 h-3.5" />
+                                        <Upload className="w-3.5 h-3.5 text-amber-400" />
                                         <input
                                           type="file"
                                           accept="image/png, image/jpeg, image/webp"
@@ -5099,106 +5082,118 @@ export default function EnterpriseSuperAdminDashboard() {
                                           className="hidden"
                                         />
                                       </label>
-                                    )}
-                                  </div>
-                                </td>
+                                    </div>
+                                  ) : (
+                                    <label
+                                      className="w-9 h-9 rounded-lg bg-neutral-900 border border-dashed border-neutral-700 hover:border-amber-400 text-gray-500 hover:text-amber-400 flex items-center justify-center cursor-pointer transition flex-shrink-0"
+                                      title="Upload Image"
+                                    >
+                                      <Upload className="w-3.5 h-3.5" />
+                                      <input
+                                        type="file"
+                                        accept="image/png, image/jpeg, image/webp"
+                                        onChange={(e) => handleQuickServiceArtworkUpload(service.id || service.serviceId, e)}
+                                        className="hidden"
+                                      />
+                                    </label>
+                                  )}
+                                </div>
+                              </td>
 
-                                {/* Devotional Service Title & Sub */}
-                                <td className="py-3 px-4">
-                                  <div className="flex flex-col">
-                                    <span className="font-bold text-gray-100 group-hover:text-[#FFB300] transition text-sm">
-                                      {service.title}
-                                    </span>
-                                    <span className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">
-                                      {service.sub || 'Step-by-step sacred rituals'}
-                                    </span>
-                                  </div>
-                                </td>
-
-                                {/* Canonical Key */}
-                                <td className="py-3 px-4">
-                                  <span className="text-[11px] font-mono px-2 py-0.5 bg-[#141414] border border-[#2C2C2C] text-amber-400/90 rounded">
-                                    {sKey}
+                              {/* Devotional Service Title & Sub */}
+                              <td className="py-3 px-4">
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-gray-100 group-hover:text-[#FFB300] transition text-sm">
+                                    {service.title}
                                   </span>
-                                </td>
-
-                                {/* Route */}
-                                <td className="py-3 px-4">
-                                  <span className="text-[11px] font-mono px-2 py-0.5 bg-[#141414] border border-[#2C2C2C] text-gray-400 rounded">
-                                    {service.url}
+                                  <span className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">
+                                    {service.sub || 'Step-by-step sacred rituals'}
                                   </span>
-                                </td>
+                                </div>
+                              </td>
 
-                                {/* Subcategories count & link */}
-                                <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                              {/* Canonical Key */}
+                              <td className="py-3 px-4">
+                                <span className="text-[11px] font-mono px-2 py-0.5 bg-[#141414] border border-[#2C2C2C] text-amber-400/90 rounded">
+                                  {sKey}
+                                </span>
+                              </td>
+
+                              {/* Route */}
+                              <td className="py-3 px-4">
+                                <span className="text-[11px] font-mono px-2 py-0.5 bg-[#141414] border border-[#2C2C2C] text-gray-400 rounded">
+                                  {service.url}
+                                </span>
+                              </td>
+
+                              {/* Subcategories count & link */}
+                              <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedParentCategoryFilter(sKey);
+                                    loadSubcategories(1, '', selectedLang, sKey);
+                                    setActiveTab('subcategories');
+                                  }}
+                                  title="View subcategories in this category"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 rounded-full font-semibold text-[11px] transition shadow-sm hover:scale-105"
+                                >
+                                  <Layers className="w-3 h-3 text-amber-400" />
+                                  <span className="font-bold">{subCount}</span>
+                                </button>
+                              </td>
+
+                              {/* Status */}
+                              <td className="py-3 px-4 text-center">
+                                <span
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${service.isActive !== false
+                                      ? 'bg-emerald-950/60 border border-emerald-800/50 text-emerald-300'
+                                      : 'bg-gray-800/60 border border-gray-700/50 text-gray-400'
+                                    }`}
+                                >
+                                  <span
+                                    className={`w-1.5 h-1.5 rounded-full ${service.isActive !== false ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'
+                                      }`}
+                                  />
+                                  {service.isActive !== false ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+
+                              {/* Actions */}
+                              <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-end gap-1.5">
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      setSelectedParentCategoryFilter(sKey);
-                                      loadSubcategories(1, '', selectedLang, sKey);
-                                      setActiveTab('subcategories');
-                                    }}
-                                    title="View subcategories in this category"
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 rounded-full font-semibold text-[11px] transition shadow-sm hover:scale-105"
+                                    onClick={(e) => handleOpenViewService(service, e)}
+                                    title="View Details by ID"
+                                    className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-white rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition"
                                   >
-                                    <Layers className="w-3 h-3 text-amber-400" />
-                                    <span className="font-bold">{subCount}</span>
+                                    <Eye className="w-3 h-3 text-sky-400" />
+                                    <span>View</span>
                                   </button>
-                                </td>
-
-                                {/* Status */}
-                                <td className="py-3 px-4 text-center">
-                                  <span
-                                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
-                                      service.isActive !== false
-                                        ? 'bg-emerald-950/60 border border-emerald-800/50 text-emerald-300'
-                                        : 'bg-gray-800/60 border border-gray-700/50 text-gray-400'
-                                    }`}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleOpenEditService(service, e)}
+                                    title="Edit Devotional Service"
+                                    className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-amber-400 rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition"
                                   >
-                                    <span
-                                      className={`w-1.5 h-1.5 rounded-full ${
-                                        service.isActive !== false ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'
-                                      }`}
-                                    />
-                                    {service.isActive !== false ? 'Active' : 'Inactive'}
-                                  </span>
-                                </td>
-
-                                {/* Actions */}
-                                <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex items-center justify-end gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleOpenViewService(service, e)}
-                                      title="View Details by ID"
-                                      className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-white rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition"
-                                    >
-                                      <Eye className="w-3 h-3 text-sky-400" />
-                                      <span>View</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleOpenEditService(service, e)}
-                                      title="Edit Devotional Service"
-                                      className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-amber-400 rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition"
-                                    >
-                                      <Edit3 className="w-3 h-3 text-amber-400" />
-                                      <span>Edit</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleDeleteCategoryService(service, e)}
-                                      title="Delete Devotional Service"
-                                      className="px-2 py-1 bg-[#141414] hover:bg-rose-950/40 text-gray-300 hover:text-red-400 rounded border border-[#2C2C2C] hover:border-red-900/40 flex items-center gap-1 text-[11px] font-semibold transition"
-                                    >
-                                      <Trash2 className="w-3 h-3 text-red-400" />
-                                      <span>Delete</span>
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
+                                    <Edit3 className="w-3 h-3 text-amber-400" />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDeleteCategoryService(service, e)}
+                                    title="Delete Devotional Service"
+                                    className="px-2 py-1 bg-[#141414] hover:bg-rose-950/40 text-gray-300 hover:text-red-400 rounded border border-[#2C2C2C] hover:border-red-900/40 flex items-center gap-1 text-[11px] font-semibold transition"
+                                  >
+                                    <Trash2 className="w-3 h-3 text-red-400" />
+                                    <span>Delete</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -5928,64 +5923,89 @@ export default function EnterpriseSuperAdminDashboard() {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (viewDetail.isType) {
-                        const match = devotionalContent.find(c => String(c.id) === String(viewDetail.id));
-                        if (match) {
-                          handleOpenEditType(match);
-                        } else {
-                          handleOpenEditType({
-                            id: Number(viewDetail.id),
-                            categoryId: Number(viewDetail.parentId),
+                  {/* Action Buttons: Edit and Delete Side by Side */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (viewDetail.isType) {
+                          const match = devotionalContent.find(c => String(c.id) === String(viewDetail.id));
+                          if (match) {
+                            handleOpenEditType(match);
+                          } else {
+                            handleOpenEditType({
+                              id: Number(viewDetail.id),
+                              categoryId: Number(viewDetail.parentId),
+                              title: viewDetail.title,
+                              slug: viewDetail.slug,
+                              sacredText: viewDetail.sacredText,
+                              meaning: viewDetail.meaning,
+                              isPublished: viewDetail.isPublished !== false
+                            });
+                          }
+                        } else if (viewDetail.isSubcategory || viewDetail.parentId) {
+                          handleOpenEditSubcategory({
+                            id: String(viewDetail.id),
                             title: viewDetail.title,
                             slug: viewDetail.slug,
-                            sacredText: viewDetail.sacredText,
-                            meaning: viewDetail.meaning,
-                            isPublished: viewDetail.isPublished !== false
+                            parentId: Number(viewDetail.parentId) || 1,
+                            description: viewDetail.description || '',
+                            displayOrder: viewDetail.displayOrder || 1,
+                            imageUrl: viewDetail.imageUrl || '',
+                            parentTitle: viewDetail.parentTitle || 'Pooja Vidhanam',
                           });
-                        }
-                      } else if (viewDetail.isSubcategory || viewDetail.parentId) {
-                        handleOpenEditSubcategory({
-                          id: String(viewDetail.id),
-                          title: viewDetail.title,
-                          slug: viewDetail.slug,
-                          parentId: Number(viewDetail.parentId) || 1,
-                          description: viewDetail.description || '',
-                          displayOrder: viewDetail.displayOrder || 1,
-                          imageUrl: viewDetail.imageUrl || '',
-                          parentTitle: viewDetail.parentTitle || 'Pooja Vidhanam',
-                        });
-                      } else {
-                        const matchingCat = categories.find(c => String(c.id) === String(viewDetail.id));
-                        if (matchingCat) {
-                          handleOpenEditCategory(matchingCat);
                         } else {
-                          setEditingId(viewDetail.id);
-                          setFormTitle(viewDetail.title);
-                          setFormSlug(viewDetail.slug);
-                          setFormIsAudio(viewDetail.isAudio);
-                          setFormDescription(viewDetail.description || '');
-                          setPageMode('EDIT_CATEGORY');
+                          const matchingCat = categories.find(c => String(c.id) === String(viewDetail.id));
+                          if (matchingCat) {
+                            handleOpenEditCategory(matchingCat);
+                          } else {
+                            setEditingId(viewDetail.id);
+                            setFormTitle(viewDetail.title);
+                            setFormSlug(viewDetail.slug);
+                            setFormIsAudio(viewDetail.isAudio);
+                            setFormDescription(viewDetail.description || '');
+                            setPageMode('EDIT_CATEGORY');
+                          }
                         }
-                      }
-                    }}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] font-bold text-xs rounded-lg transition shadow-lg shadow-amber-500/20"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>Edit This Record</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPageMode('LIST');
-                      setViewDetail(null);
-                    }}
-                    className="px-4 py-2 bg-[#0D2E21] hover:bg-[#133F2E] border border-[#1E5C41] rounded-lg text-gray-200 font-semibold text-xs transition"
-                  >
-                    Close
-                  </button>
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] font-bold text-xs rounded-lg transition shadow-lg shadow-amber-500/20"
+                      title="Edit this record"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (viewDetail.isType) {
+                          if (confirm(`Archive type / sacred verse "${viewDetail.title}" (#${viewDetail.id})?`)) {
+                            await handleDeleteContent(Number(viewDetail.id), viewDetail.title);
+                            setPageMode('LIST');
+                            setViewDetail(null);
+                          }
+                        } else if (viewDetail.isSubcategory || viewDetail.parentId) {
+                          if (confirm(`Archive subcategory "${viewDetail.title}" (#${viewDetail.id})?`)) {
+                            await handleDeleteSubcategory(String(viewDetail.id), viewDetail.title);
+                            setPageMode('LIST');
+                            setViewDetail(null);
+                          }
+                        } else {
+                          if (confirm(`Archive category "${viewDetail.title}" (#${viewDetail.id})?`)) {
+                            await handleDeleteCategory(viewDetail.id, viewDetail.title);
+                            setPageMode('LIST');
+                            setViewDetail(null);
+                          }
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-red-950/60 hover:bg-red-900/80 border border-red-700/60 text-red-300 hover:text-white font-bold text-xs rounded-lg transition shadow-lg shadow-red-900/20"
+                      title="Delete this record"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+
                 </div>
               </div>
 
@@ -6301,6 +6321,89 @@ export default function EnterpriseSuperAdminDashboard() {
                         </div>
                       </div>
                     )}
+
+                    {/* Quick Action Buttons: Edit and Delete Side by Side */}
+                    <div className="pt-3 border-t border-[#16422F] flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (viewDetail.isType) {
+                            const match = devotionalContent.find(c => String(c.id) === String(viewDetail.id));
+                            if (match) {
+                              handleOpenEditType(match);
+                            } else {
+                              handleOpenEditType({
+                                id: Number(viewDetail.id),
+                                categoryId: Number(viewDetail.parentId),
+                                title: viewDetail.title,
+                                slug: viewDetail.slug,
+                                sacredText: viewDetail.sacredText,
+                                meaning: viewDetail.meaning,
+                                isPublished: viewDetail.isPublished !== false
+                              });
+                            }
+                          } else if (viewDetail.isSubcategory || viewDetail.parentId) {
+                            handleOpenEditSubcategory({
+                              id: String(viewDetail.id),
+                              title: viewDetail.title,
+                              slug: viewDetail.slug,
+                              parentId: Number(viewDetail.parentId) || 1,
+                              description: viewDetail.description || '',
+                              displayOrder: viewDetail.displayOrder || 1,
+                              imageUrl: viewDetail.imageUrl || '',
+                              parentTitle: viewDetail.parentTitle || 'Pooja Vidhanam',
+                            });
+                          } else {
+                            const matchingCat = categories.find(c => String(c.id) === String(viewDetail.id));
+                            if (matchingCat) {
+                              handleOpenEditCategory(matchingCat);
+                            } else {
+                              setEditingId(viewDetail.id);
+                              setFormTitle(viewDetail.title);
+                              setFormSlug(viewDetail.slug);
+                              setFormIsAudio(viewDetail.isAudio);
+                              setFormDescription(viewDetail.description || '');
+                              setPageMode('EDIT_CATEGORY');
+                            }
+                          }
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] font-bold text-xs rounded-lg transition shadow"
+                        title="Edit this record"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (viewDetail.isType) {
+                            if (confirm(`Archive type / sacred verse "${viewDetail.title}" (#${viewDetail.id})?`)) {
+                              await handleDeleteContent(Number(viewDetail.id), viewDetail.title);
+                              setPageMode('LIST');
+                              setViewDetail(null);
+                            }
+                          } else if (viewDetail.isSubcategory || viewDetail.parentId) {
+                            if (confirm(`Archive subcategory "${viewDetail.title}" (#${viewDetail.id})?`)) {
+                              await handleDeleteSubcategory(String(viewDetail.id), viewDetail.title);
+                              setPageMode('LIST');
+                              setViewDetail(null);
+                            }
+                          } else {
+                            if (confirm(`Archive category "${viewDetail.title}" (#${viewDetail.id})?`)) {
+                              await handleDeleteCategory(viewDetail.id, viewDetail.title);
+                              setPageMode('LIST');
+                              setViewDetail(null);
+                            }
+                          }
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-red-950/60 hover:bg-red-900/80 border border-red-700/60 text-red-300 hover:text-white font-bold text-xs rounded-lg transition shadow"
+                        title="Delete this record"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Multi-Language Database Translations */}
@@ -7980,11 +8083,11 @@ export default function EnterpriseSuperAdminDashboard() {
                           const count = (matchedParent && matchedParent.subcategoriesCount !== undefined && matchedParent.subcategoriesCount > 0)
                             ? matchedParent.subcategoriesCount
                             : (parentCategoryCounts[cat.key] ??
-                               (cat.key === 'songs' ? parentCategoryCounts['bhajans'] : undefined) ??
-                               (cat.key === 'bhajans' ? parentCategoryCounts['songs'] : undefined) ??
-                               (cat.key === 'live-streams' ? parentCategoryCounts['darshan'] : undefined) ??
-                               (cat.key === 'donations' ? parentCategoryCounts['annadanam'] : undefined) ??
-                               0);
+                              (cat.key === 'songs' ? parentCategoryCounts['bhajans'] : undefined) ??
+                              (cat.key === 'bhajans' ? parentCategoryCounts['songs'] : undefined) ??
+                              (cat.key === 'live-streams' ? parentCategoryCounts['darshan'] : undefined) ??
+                              (cat.key === 'donations' ? parentCategoryCounts['annadanam'] : undefined) ??
+                              0);
                           const isSelected = selectedParentCategoryFilter === targetId || selectedParentCategoryFilter === cat.key || (matchedParent && (selectedParentCategoryFilter === matchedParent.slug || String(selectedParentCategoryFilter) === String(matchedParent.id)));
 
                           return (
