@@ -636,14 +636,20 @@ export default function EnterpriseSuperAdminDashboard() {
   const parentLookupListRef = useRef<ParentLookupItem[]>([]);
   const [parentCategoryCounts, setParentCategoryCounts] = useState<{ [key: string]: number }>({
     'pooja': 76,
+    'pooja-vidhanam': 76,
     'stotras': 43,
+    'divine-stotras': 43,
     'slokas': 11,
+    'daily-slokas': 11,
     'songs': 27,
+    'bhajans': 27,
     'live-streams': 0,
+    'darshan': 0,
     'panchangam': 0,
     'festivals': 0,
     'temples': 0,
-    'donations': 0
+    'donations': 0,
+    'annadanam': 0
   });
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
@@ -1313,14 +1319,20 @@ export default function EnterpriseSuperAdminDashboard() {
   const computeDynamicCategoryCounts = useCallback((subList: any[]) => {
     const counts: { [k: string]: number } = {
       'pooja': 0,
+      'pooja-vidhanam': 0,
       'stotras': 0,
+      'divine-stotras': 0,
       'slokas': 0,
+      'daily-slokas': 0,
       'songs': 0,
+      'bhajans': 0,
       'live-streams': 0,
+      'darshan': 0,
       'panchangam': 0,
       'festivals': 0,
       'temples': 0,
-      'donations': 0
+      'donations': 0,
+      'annadanam': 0
     };
 
     const rootFamilyMap: { [id: number]: string } = {
@@ -1361,6 +1373,13 @@ export default function EnterpriseSuperAdminDashboard() {
         counts['donations']++;
       }
     }
+
+    counts['bhajans'] = counts['songs'];
+    counts['darshan'] = counts['live-streams'];
+    counts['annadanam'] = counts['donations'];
+    counts['pooja-vidhanam'] = counts['pooja'];
+    counts['divine-stotras'] = counts['stotras'];
+    counts['daily-slokas'] = counts['slokas'];
 
     return counts;
   }, []);
@@ -2293,9 +2312,12 @@ export default function EnterpriseSuperAdminDashboard() {
     } else if (activeTab === 'subcategories') {
       loadSubcategories(1, searchQuery, selectedLang, selectedParentCategoryFilter);
       loadParentLookup(selectedLang);
+      loadAllSubcategoriesList(selectedLang);
       loadDeities(selectedLang);
     } else if (activeTab === 'devotional_services') {
       loadCategoryServices();
+      loadAllSubcategoriesList(selectedLang);
+      loadParentLookup(selectedLang);
     } else if (activeTab === 'temples' || (activeTab === 'categories' && selectedCategorySubtitle === 'temples')) {
       loadAdminTemples();
     } else if (activeTab === 'content') {
@@ -5012,9 +5034,18 @@ export default function EnterpriseSuperAdminDashboard() {
                       </thead>
                       <tbody className="divide-y divide-[#282828]">
                         {devotionalServices.map((service, index) => {
-                            const sKey = service.serviceId || service.id;
+                            const sKey = (service.serviceId || service.id || '').toLowerCase();
                             const artworkSrc = service.artwork || categoryArtworkMap[sKey] || categoryArtworkMap[service.id];
-                            const subCount = parentCategoryCounts[sKey] ?? parentCategoryCounts[service.id] ?? 0;
+                            const subCount = service.subcategoriesCount !== undefined
+                              ? service.subcategoriesCount
+                              : (parentCategoryCounts[sKey] ??
+                                 (sKey === 'bhajans' ? parentCategoryCounts['songs'] : undefined) ??
+                                 (sKey === 'songs' ? parentCategoryCounts['bhajans'] : undefined) ??
+                                 (sKey === 'darshan' ? parentCategoryCounts['live-streams'] : undefined) ??
+                                 (sKey === 'live-streams' ? parentCategoryCounts['darshan'] : undefined) ??
+                                 (sKey === 'annadanam' ? parentCategoryCounts['donations'] : undefined) ??
+                                 (sKey === 'donations' ? parentCategoryCounts['annadanam'] : undefined) ??
+                                 0);
                             return (
                               <tr
                                 key={service.id || service.serviceId || index}
@@ -7948,7 +7979,12 @@ export default function EnterpriseSuperAdminDashboard() {
                           const targetId = matchedParent ? String(matchedParent.id) : (cat.exactId ? String(cat.exactId) : cat.key);
                           const count = (matchedParent && matchedParent.subcategoriesCount !== undefined && matchedParent.subcategoriesCount > 0)
                             ? matchedParent.subcategoriesCount
-                            : (parentCategoryCounts[cat.key] ?? 0);
+                            : (parentCategoryCounts[cat.key] ??
+                               (cat.key === 'songs' ? parentCategoryCounts['bhajans'] : undefined) ??
+                               (cat.key === 'bhajans' ? parentCategoryCounts['songs'] : undefined) ??
+                               (cat.key === 'live-streams' ? parentCategoryCounts['darshan'] : undefined) ??
+                               (cat.key === 'donations' ? parentCategoryCounts['annadanam'] : undefined) ??
+                               0);
                           const isSelected = selectedParentCategoryFilter === targetId || selectedParentCategoryFilter === cat.key || (matchedParent && (selectedParentCategoryFilter === matchedParent.slug || String(selectedParentCategoryFilter) === String(matchedParent.id)));
 
                           return (
