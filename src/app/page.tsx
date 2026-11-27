@@ -339,6 +339,50 @@ const renderServiceIcon = (iconName: string) => {
   }
 };
 
+const VALID_ADMIN_TABS = new Set([
+  'dashboard',
+  'cms',
+  'users',
+  'devotional_services',
+  'subcategories',
+  'content',
+  'temples',
+  'categories',
+  'gods',
+  'audio',
+  'temple_types',
+  'tickets',
+  'settings',
+  'soft_deleted_users',
+  'panchangam',
+  'festivals',
+  'splash',
+  'languages',
+  'audit',
+  'profile'
+]);
+
+const getStoredTab = (): string => {
+  if (typeof window === 'undefined') return 'dashboard';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const urlTab = params.get('tab');
+    if (urlTab && VALID_ADMIN_TABS.has(urlTab)) return urlTab;
+    const localTab = localStorage.getItem('ayyappa_admin_active_tab');
+    if (localTab && VALID_ADMIN_TABS.has(localTab)) return localTab;
+  } catch (_) {}
+  return 'dashboard';
+};
+
+const getStoredExpandedSection = (tab: string): 'cms' | 'users' | 'categories' | 'vidhanam' | 'audio' | null => {
+  if (tab === 'cms') return 'cms';
+  if (tab === 'users' || tab === 'soft_deleted_users') return 'users';
+  if (tab === 'categories' || tab === 'devotional_services' || tab === 'subcategories' || tab === 'temples') return 'categories';
+  if (tab === 'content' || tab === 'gods') return 'vidhanam';
+  if (tab === 'audio') return 'audio';
+  return null;
+};
+
 export default function EnterpriseSuperAdminDashboard() {
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -385,6 +429,15 @@ export default function EnterpriseSuperAdminDashboard() {
           } catch { }
         }
         loadAdminProfile();
+
+        const storedTab = getStoredTab();
+        if (storedTab && storedTab !== activeTab) {
+          setActiveTab(storedTab);
+        }
+        const storedSection = getStoredExpandedSection(storedTab);
+        if (storedSection) {
+          setExpandedSection(storedSection);
+        }
       } else {
         localStorage.removeItem('ayyappa_admin_token');
         localStorage.removeItem('ayyappa_admin_profile');
@@ -422,8 +475,10 @@ export default function EnterpriseSuperAdminDashboard() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Active Navigation Tab
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  // Active Navigation Tab (Persisted across reloads via URL query & localStorage)
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    return getStoredTab();
+  });
 
   // =========================================================
   // GODS & GODDESSES (DEITIES) MANAGEMENT STATE & HANDLERS
@@ -626,7 +681,16 @@ export default function EnterpriseSuperAdminDashboard() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [selectedLang, setSelectedLang] = useState('en');
+  const [selectedLang, setSelectedLang] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const p = new URLSearchParams(window.location.search);
+        const l = p.get('lang') || localStorage.getItem('ayyappa_admin_lang');
+        if (l) return l;
+      } catch (_) { }
+    }
+    return 'en';
+  });
   const [tickerText, setTickerText] = useState('');
   const [appLogoUrl, setAppLogoUrl] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -768,20 +832,135 @@ export default function EnterpriseSuperAdminDashboard() {
   const [formDescription, setFormDescription] = useState('');
 
   // CMS Editor State
-  const [selectedCmsKey, setSelectedCmsKey] = useState<string>('about_us');
+  const [selectedCmsKey, setSelectedCmsKey] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const p = new URLSearchParams(window.location.search);
+        return p.get('cms_key') || localStorage.getItem('ayyappa_admin_cms_key') || 'about_us';
+      } catch (_) { }
+    }
+    return 'about_us';
+  });
   const [cmsEditTitle, setCmsEditTitle] = useState('');
   const [cmsEditContent, setCmsEditContent] = useState('');
   const [isSavingCms, setIsSavingCms] = useState(false);
 
   // Accordion State: Only one section can be expanded at a time
-  const [expandedSection, setExpandedSection] = useState<'cms' | 'users' | 'categories' | 'vidhanam' | 'audio' | null>('cms');
+  const [expandedSection, setExpandedSection] = useState<'cms' | 'users' | 'categories' | 'vidhanam' | 'audio' | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const tab = getStoredTab();
+        const section = getStoredExpandedSection(tab);
+        if (section) return section;
+      } catch (_) { }
+    }
+    return 'cms';
+  });
 
   // Sidebar Subtitle States
-  const [selectedUserSubtitle, setSelectedUserSubtitle] = useState<'devotees' | 'dharma_karthas'>('devotees');
-  const [selectedCategorySubtitle, setSelectedCategorySubtitle] = useState<'devotional_services' | 'subcategories' | 'temples' | 'poojas' | 'events'>('devotional_services');
-  const [selectedVidhanamSubtitle, setSelectedVidhanamSubtitle] = useState<'gods' | 'slokas' | 'astothrams' | 'stotras'>('gods');
-  const [selectedMusicSubtitle, setSelectedMusicSubtitle] = useState<'bhajans' | 'slogans' | 'aarti'>('bhajans');
+  const [selectedUserSubtitle, setSelectedUserSubtitle] = useState<'devotees' | 'dharma_karthas'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const p = new URLSearchParams(window.location.search);
+        const val = p.get('user_subtitle') || localStorage.getItem('ayyappa_admin_user_subtitle');
+        if (val === 'devotees' || val === 'dharma_karthas') return val;
+      } catch (_) { }
+    }
+    return 'devotees';
+  });
+
+  const [selectedCategorySubtitle, setSelectedCategorySubtitle] = useState<'devotional_services' | 'subcategories' | 'temples' | 'poojas' | 'events'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const p = new URLSearchParams(window.location.search);
+        const val = p.get('category_subtitle') || localStorage.getItem('ayyappa_admin_category_subtitle');
+        if (val === 'devotional_services' || val === 'subcategories' || val === 'temples' || val === 'poojas' || val === 'events') return val;
+      } catch (_) { }
+    }
+    return 'devotional_services';
+  });
+
+  const [selectedVidhanamSubtitle, setSelectedVidhanamSubtitle] = useState<'gods' | 'slokas' | 'astothrams' | 'stotras'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const p = new URLSearchParams(window.location.search);
+        const val = p.get('vidhanam_subtitle') || localStorage.getItem('ayyappa_admin_vidhanam_subtitle');
+        if (val === 'gods' || val === 'slokas' || val === 'astothrams' || val === 'stotras') return val;
+      } catch (_) { }
+    }
+    return 'gods';
+  });
+
+  const [selectedMusicSubtitle, setSelectedMusicSubtitle] = useState<'bhajans' | 'slogans' | 'aarti'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const p = new URLSearchParams(window.location.search);
+        const val = p.get('music_subtitle') || localStorage.getItem('ayyappa_admin_music_subtitle');
+        if (val === 'bhajans' || val === 'slogans' || val === 'aarti') return val;
+      } catch (_) { }
+    }
+    return 'bhajans';
+  });
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+
+  // Synchronize current page and tab to URL query & localStorage so page refresh stays on current page
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isAuthenticated) return;
+    try {
+      localStorage.setItem('ayyappa_admin_active_tab', activeTab);
+      localStorage.setItem('ayyappa_admin_lang', selectedLang);
+
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', activeTab);
+      url.searchParams.set('lang', selectedLang);
+
+      if (activeTab === 'cms' && selectedCmsKey) {
+        url.searchParams.set('cms_key', selectedCmsKey);
+        localStorage.setItem('ayyappa_admin_cms_key', selectedCmsKey);
+      } else {
+        url.searchParams.delete('cms_key');
+      }
+
+      if (activeTab === 'categories' && selectedCategorySubtitle) {
+        url.searchParams.set('category_subtitle', selectedCategorySubtitle);
+        localStorage.setItem('ayyappa_admin_category_subtitle', selectedCategorySubtitle);
+      } else {
+        url.searchParams.delete('category_subtitle');
+      }
+
+      if (activeTab === 'content' && selectedVidhanamSubtitle) {
+        url.searchParams.set('vidhanam_subtitle', selectedVidhanamSubtitle);
+        localStorage.setItem('ayyappa_admin_vidhanam_subtitle', selectedVidhanamSubtitle);
+      } else {
+        url.searchParams.delete('vidhanam_subtitle');
+      }
+
+      if (activeTab === 'users' && selectedUserSubtitle) {
+        url.searchParams.set('user_subtitle', selectedUserSubtitle);
+        localStorage.setItem('ayyappa_admin_user_subtitle', selectedUserSubtitle);
+      } else {
+        url.searchParams.delete('user_subtitle');
+      }
+
+      if (activeTab === 'audio' && selectedMusicSubtitle) {
+        url.searchParams.set('music_subtitle', selectedMusicSubtitle);
+        localStorage.setItem('ayyappa_admin_music_subtitle', selectedMusicSubtitle);
+      } else {
+        url.searchParams.delete('music_subtitle');
+      }
+
+      window.history.replaceState(null, '', url.toString());
+    } catch (_) { }
+  }, [
+    activeTab,
+    selectedLang,
+    selectedCmsKey,
+    selectedCategorySubtitle,
+    selectedVidhanamSubtitle,
+    selectedUserSubtitle,
+    selectedMusicSubtitle,
+    isAuthenticated
+  ]);
 
   // Sync CMS Editor fields when active tab or selected key changes
   useEffect(() => {
@@ -984,9 +1163,21 @@ export default function EnterpriseSuperAdminDashboard() {
     }
     setIsAuthenticated(false);
     setLoginPassword('');
+    setActiveTab('dashboard');
     if (typeof window !== 'undefined') {
       localStorage.removeItem('ayyappa_admin_token');
       localStorage.removeItem('ayyappa_admin_profile');
+      localStorage.removeItem('ayyappa_admin_active_tab');
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('tab');
+        url.searchParams.delete('cms_key');
+        url.searchParams.delete('category_subtitle');
+        url.searchParams.delete('vidhanam_subtitle');
+        url.searchParams.delete('user_subtitle');
+        url.searchParams.delete('music_subtitle');
+        window.history.replaceState(null, '', url.toString());
+      } catch (_) { }
     }
     setNotification('You have logged out securely. Backend session revoked.');
   };
