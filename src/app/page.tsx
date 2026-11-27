@@ -1065,29 +1065,67 @@ export default function EnterpriseSuperAdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  // 2. Load Subcategories & Category Lookup
-  const loadParentLookup = useCallback((lang = 'en') => {
-    fetch(`${API_BASE_URL}/admin/categories?limit=100&lang=${lang}`)
+  // 2. Load Subcategories & Category Lookup (Strictly 9 Sanctum Parent Categories)
+  const sanitizeParentCategories = useCallback((rawList: any[]) => {
+    const CANONICAL_GROUP: { [k: string]: string } = {
+      'pooja': 'pooja', 'pooja-vidhanam': 'pooja',
+      'stotras': 'stotras', 'divine-stotras': 'stotras',
+      'slokas': 'slokas', 'daily-slokas': 'slokas',
+      'songs': 'songs', 'bhajans': 'songs',
+      'live-streams': 'live-streams', 'live-darshan': 'live-streams', 'darshan': 'live-streams',
+      'panchangam': 'panchangam',
+      'festivals': 'festivals', 'temple-festivals': 'festivals',
+      'temples': 'temples', 'sacred-temples': 'temples',
+      'donations': 'donations', 'annadanam': 'donations', 'annadanam-seva': 'donations'
+    };
+
+    const seen = new Set<string>();
+    const sanitized: any[] = [];
+
+    for (const item of rawList) {
+      const slug = (item.slug || '').toLowerCase().trim();
+      const title = (item.title || '').toLowerCase().trim();
+      // Exclude calendar dates / non-canonical entries
+      if (slug.includes('dates') || slug.includes('nakshatra') || slug.includes('opening')) continue;
+      if (title.includes('dates') || title.includes('nakshatra') || title.includes('opening')) continue;
+
+      const matchedKey = Object.keys(CANONICAL_GROUP).find(k => slug === k || slug.includes(k) || title.includes(k));
+      const group = matchedKey ? CANONICAL_GROUP[matchedKey] : null;
+      if (group) {
+        if (seen.has(group)) continue;
+        seen.add(group);
+        sanitized.push(item);
+      }
+    }
+
+    return sanitized.length > 0 ? sanitized : rawList;
+  }, []);
+
+  const loadParentLookup = useCallback((lang = 'te') => {
+    fetch(`${API_BASE_URL}/admin/categories/parents?lang=${lang}`)
       .then(res => res.json())
       .then(res => {
-        const list = (res && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
+        const raw = (res && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
+        const list = sanitizeParentCategories(raw);
         if (list.length > 0) {
           parentLookupListRef.current = list;
           setParentLookupList(list);
         }
       })
       .catch(() => {
-        fetch(`${API_BASE_URL}/admin/categories/parents?lang=${lang}`)
+        fetch(`${API_BASE_URL}/admin/categories?limit=100&lang=${lang}`)
           .then(r => r.json())
           .then(data => {
-            if (Array.isArray(data) && data.length > 0) {
-              parentLookupListRef.current = data;
-              setParentLookupList(data);
+            const raw = (data && Array.isArray(data.data)) ? data.data : (Array.isArray(data) ? data : []);
+            const list = sanitizeParentCategories(raw);
+            if (list.length > 0) {
+              parentLookupListRef.current = list;
+              setParentLookupList(list);
             }
           })
           .catch(() => { });
       });
-  }, []);
+  }, [sanitizeParentCategories]);
 
   const loadAllSubcategoriesList = useCallback((lang = 'en') => {
     fetch(`${API_BASE_URL}/admin/subcategories?limit=500&lang=${lang}`)
@@ -2316,14 +2354,18 @@ export default function EnterpriseSuperAdminDashboard() {
     // Dynamically fetch latest Parent Categories & Gods / Goddesses directly from DB via API
     try {
       const [parentsRes, deitiesRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/admin/categories?limit=100&lang=${selectedLang}`).then(r => r.json()).catch(() => null),
+        fetch(`${API_BASE_URL}/admin/categories/parents?lang=${selectedLang}`).then(r => r.json()).catch(() => null),
         fetch(`${API_BASE_URL}/admin/deities?lang=${selectedLang}`).then(r => r.json()).catch(() => null)
       ]);
 
-      if (parentsRes && Array.isArray(parentsRes.data) && parentsRes.data.length > 0) {
-        availableParents = parentsRes.data;
-        setParentLookupList(parentsRes.data);
-        parentLookupListRef.current = parentsRes.data;
+      if (parentsRes) {
+        const raw = Array.isArray(parentsRes.data) ? parentsRes.data : (Array.isArray(parentsRes) ? parentsRes : []);
+        const sanitized = sanitizeParentCategories(raw);
+        if (sanitized.length > 0) {
+          availableParents = sanitized;
+          setParentLookupList(sanitized);
+          parentLookupListRef.current = sanitized;
+        }
       }
       if (deitiesRes && Array.isArray(deitiesRes.data) && deitiesRes.data.length > 0) {
         availableDeities = deitiesRes.data;
@@ -2451,7 +2493,7 @@ export default function EnterpriseSuperAdminDashboard() {
           const r = await fetch(`${API_BASE_URL}/admin/subcategories/${targetId}?lang=${lang || selectedLang}`);
           const d = await r.json();
           if (d && d.data) setViewDetail(d.data);
-        } catch (_) {}
+        } catch (_) { }
       }
     });
   };
@@ -4517,114 +4559,99 @@ export default function EnterpriseSuperAdminDashboard() {
               </div>
 
               {/* Devotional Services Grid Matching User Reference Image */}
-                {loadingServices ? (
-                  <div className="flex flex-col items-center justify-center p-12 bg-[#1A1A1A] rounded-2xl border border-[#2C2C2C] text-gray-400">
-                    <RefreshCw className="w-8 h-8 animate-spin text-amber-400 mb-3" />
-                    <p className="text-sm font-semibold">Loading devotional services from database...</p>
+              {loadingServices ? (
+                <div className="flex flex-col items-center justify-center p-12 bg-[#1A1A1A] rounded-2xl border border-[#2C2C2C] text-gray-400">
+                  <RefreshCw className="w-8 h-8 animate-spin text-amber-400 mb-3" />
+                  <p className="text-sm font-semibold">Loading devotional services from database...</p>
+                </div>
+              ) : devotionalServices.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-12 bg-[#1A1A1A] rounded-2xl border border-[#2C2C2C] text-center">
+                  <FolderTree className="w-12 h-12 text-amber-400/50 mb-3" />
+                  <h3 className="text-sm font-bold text-gray-200">No Devotional Services Found in Database</h3>
+                  <p className="text-xs text-gray-400 mt-1 max-w-md">
+                    The database category_services directory has not been populated yet. Click below to load or add services.
+                  </p>
+                  <div className="flex items-center gap-3 mt-4">
+                    <button
+                      onClick={loadCategoryServices}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-lg transition"
+                    >
+                      Reload from API
+                    </button>
+                    <button
+                      onClick={handleOpenCreateService}
+                      className="px-4 py-2 bg-[#252525] hover:bg-[#333333] text-gray-200 font-bold text-xs rounded-lg border border-[#3C3C3C] transition"
+                    >
+                      + Add Devotional Service
+                    </button>
                   </div>
-                ) : devotionalServices.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center p-12 bg-[#1A1A1A] rounded-2xl border border-[#2C2C2C] text-center">
-                    <FolderTree className="w-12 h-12 text-amber-400/50 mb-3" />
-                    <h3 className="text-sm font-bold text-gray-200">No Devotional Services Found in Database</h3>
-                    <p className="text-xs text-gray-400 mt-1 max-w-md">
-                      The database category_services directory has not been populated yet. Click below to load or add services.
-                    </p>
-                    <div className="flex items-center gap-3 mt-4">
-                      <button
-                        onClick={loadCategoryServices}
-                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-lg transition"
-                      >
-                        Reload from API
-                      </button>
-                      <button
-                        onClick={handleOpenCreateService}
-                        className="px-4 py-2 bg-[#252525] hover:bg-[#333333] text-gray-200 font-bold text-xs rounded-lg border border-[#3C3C3C] transition"
-                      >
-                        + Add Devotional Service
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {devotionalServices
-                      .filter((s) => {
-                        if (!serviceSearch.trim()) return true;
-                        const q = serviceSearch.toLowerCase();
-                        const matchTitle = s.title?.toLowerCase().includes(q);
-                        const matchSub = s.sub?.toLowerCase().includes(q);
-                        const matchId = (s.serviceId || s.id)?.toLowerCase().includes(q);
-                        return matchTitle || matchSub || matchId;
-                      })
-                      .map((service, index) => {
-                        const sKey = service.serviceId || service.id;
-                        const artworkSrc = service.artwork || categoryArtworkMap[sKey] || categoryArtworkMap[service.id];
-                        return (
-                          <div
-                            key={service.id || service.serviceId || index}
-                            onClick={() => handleOpenViewService(service)}
-                            className="bg-[#1E1E1E] hover:bg-[#252525] rounded-2xl border border-[#2C2C2C] hover:border-[#FFB300]/50 p-4 transition-all duration-200 hover:shadow-2xl flex flex-col justify-between gap-3 group cursor-pointer relative"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              {/* 1. Left Medallion Icon with Divine Glyph */}
-                              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#2A2A2A] to-[#141414] border border-[#3A3A3A] group-hover:border-[#FFB300]/40 flex items-center justify-center flex-shrink-0 shadow-inner">
-                                {renderServiceIcon(service.icon || service.id)}
-                              </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {devotionalServices
+                    .filter((s) => {
+                      if (!serviceSearch.trim()) return true;
+                      const q = serviceSearch.toLowerCase();
+                      const matchTitle = s.title?.toLowerCase().includes(q);
+                      const matchSub = s.sub?.toLowerCase().includes(q);
+                      const matchId = (s.serviceId || s.id)?.toLowerCase().includes(q);
+                      return matchTitle || matchSub || matchId;
+                    })
+                    .map((service, index) => {
+                      const sKey = service.serviceId || service.id;
+                      const artworkSrc = service.artwork || categoryArtworkMap[sKey] || categoryArtworkMap[service.id];
+                      return (
+                        <div
+                          key={service.id || service.serviceId || index}
+                          onClick={() => handleOpenViewService(service)}
+                          className="bg-[#1E1E1E] hover:bg-[#252525] rounded-2xl border border-[#2C2C2C] hover:border-[#FFB300]/50 p-4 transition-all duration-200 hover:shadow-2xl flex flex-col justify-between gap-3 group cursor-pointer relative"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            {/* 1. Left Medallion Icon with Divine Glyph */}
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#2A2A2A] to-[#141414] border border-[#3A3A3A] group-hover:border-[#FFB300]/40 flex items-center justify-center flex-shrink-0 shadow-inner">
+                              {renderServiceIcon(service.icon || service.id)}
+                            </div>
 
-                              {/* 2. Middle Information (Title + Subtitle) */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <h3 className="font-bold text-sm text-gray-100 group-hover:text-[#FFB300] transition truncate">
-                                    {service.title}
-                                  </h3>
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-gray-400 font-mono">
-                                    #{service.displayOrder || index + 1}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-gray-400 truncate mt-0.5 font-medium">
-                                  {service.sub || 'Step-by-step sacred rituals'}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1.5">
-                                  <span className="text-[10px] text-gray-500 font-mono bg-[#141414] px-1.5 py-0.5 rounded border border-[#2C2C2C]">
-                                    {service.url}
-                                  </span>
-                                  <span className={`text-[10px] font-medium flex items-center gap-1 ${service.isActive !== false ? 'text-emerald-400' : 'text-gray-400'}`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${service.isActive !== false ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}`} />
-                                    {service.isActive !== false ? 'Active' : 'Inactive'}
-                                  </span>
-                                </div>
+                            {/* 2. Middle Information (Title + Subtitle) */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-sm text-gray-100 group-hover:text-[#FFB300] transition truncate">
+                                  {service.title}
+                                </h3>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-gray-400 font-mono">
+                                  #{service.displayOrder || index + 1}
+                                </span>
                               </div>
+                              <p className="text-xs text-gray-400 truncate mt-0.5 font-medium">
+                                {service.sub || 'Step-by-step sacred rituals'}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className="text-[10px] text-gray-500 font-mono bg-[#141414] px-1.5 py-0.5 rounded border border-[#2C2C2C]">
+                                  {service.url}
+                                </span>
+                                <span className={`text-[10px] font-medium flex items-center gap-1 ${service.isActive !== false ? 'text-emerald-400' : 'text-gray-400'}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${service.isActive !== false ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}`} />
+                                  {service.isActive !== false ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                            </div>
 
-                              {/* 3. Devotional Line Artwork & Arrow */}
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                {artworkSrc ? (
-                                  <div className="relative group/art w-12 h-12 flex items-center justify-center rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800">
-                                    <img
-                                      src={resolveArtworkUrl(artworkSrc)}
-                                      alt={service.title}
-                                      className="w-10 h-10 object-contain opacity-85 group-hover:opacity-100 transition transform group-hover:scale-105"
-                                      onError={(e: any) => { e.currentTarget.style.display = 'none'; }}
-                                    />
-                                    <label
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="absolute inset-0 bg-black/70 opacity-0 group-hover/art:opacity-100 flex items-center justify-center cursor-pointer transition rounded-xl"
-                                      title="Upload / Change Category Image"
-                                    >
-                                      <Upload className="w-4 h-4 text-amber-400" />
-                                      <input
-                                        type="file"
-                                        accept="image/png, image/jpeg, image/webp"
-                                        onChange={(e) => handleQuickServiceArtworkUpload(service.id || service.serviceId, e)}
-                                        className="hidden"
-                                      />
-                                    </label>
-                                  </div>
-                                ) : (
+                            {/* 3. Devotional Line Artwork & Arrow */}
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {artworkSrc ? (
+                                <div className="relative group/art w-12 h-12 flex items-center justify-center rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800">
+                                  <img
+                                    src={resolveArtworkUrl(artworkSrc)}
+                                    alt={service.title}
+                                    className="w-10 h-10 object-contain opacity-85 group-hover:opacity-100 transition transform group-hover:scale-105"
+                                    onError={(e: any) => { e.currentTarget.style.display = 'none'; }}
+                                  />
                                   <label
                                     onClick={(e) => e.stopPropagation()}
-                                    className="w-12 h-12 flex items-center justify-center rounded-xl bg-neutral-900 border border-dashed border-neutral-700 hover:border-amber-400 text-gray-500 hover:text-amber-400 cursor-pointer transition"
-                                    title="Upload Category Image"
+                                    className="absolute inset-0 bg-black/70 opacity-0 group-hover/art:opacity-100 flex items-center justify-center cursor-pointer transition rounded-xl"
+                                    title="Upload / Change Category Image"
                                   >
-                                    <Upload className="w-4 h-4" />
+                                    <Upload className="w-4 h-4 text-amber-400" />
                                     <input
                                       type="file"
                                       accept="image/png, image/jpeg, image/webp"
@@ -4632,28 +4659,14 @@ export default function EnterpriseSuperAdminDashboard() {
                                       className="hidden"
                                     />
                                   </label>
-                                )}
-
-                                <div className="w-7 h-7 rounded-full border border-[#3A3A3A] bg-[#141414] flex items-center justify-center text-gray-400 group-hover:text-[#FFB300] group-hover:border-[#FFB300]/50 transition">
-                                  <ArrowRight className="w-3.5 h-3.5" />
                                 </div>
-                              </div>
-                            </div>
-
-                            {/* Card Footer Action Bar */}
-                            <div className="pt-2.5 border-t border-[#2A2A2A] flex items-center justify-between text-xs">
-                              <span className="text-[11px] text-gray-400 font-mono flex items-center gap-1">
-                                <span className="text-gray-500">ID:</span>
-                                <span className="text-amber-400/90">{sKey}</span>
-                              </span>
-
-                              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              ) : (
                                 <label
-                                  title="Upload / Replace Category Image"
-                                  className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-emerald-400 rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition cursor-pointer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-12 h-12 flex items-center justify-center rounded-xl bg-neutral-900 border border-dashed border-neutral-700 hover:border-amber-400 text-gray-500 hover:text-amber-400 cursor-pointer transition"
+                                  title="Upload Category Image"
                                 >
-                                  <Upload className="w-3 h-3 text-emerald-400" />
-                                  <span>Image</span>
+                                  <Upload className="w-4 h-4" />
                                   <input
                                     type="file"
                                     accept="image/png, image/jpeg, image/webp"
@@ -4661,53 +4674,82 @@ export default function EnterpriseSuperAdminDashboard() {
                                     className="hidden"
                                   />
                                 </label>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const sKey = service.serviceId || service.id;
-                                    setSelectedParentCategoryFilter(sKey);
-                                    loadSubcategories(1, '', selectedLang, sKey);
-                                    setActiveTab('subcategories');
-                                  }}
-                                  title="Manage Subcategories under this Category"
-                                  className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded border border-amber-500/30 flex items-center gap-1 text-[11px] font-semibold transition"
-                                >
-                                  <Layers className="w-3 h-3 text-amber-400" />
-                                  <span>Subcategories</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleOpenViewService(service, e)}
-                                  title="View Details by ID"
-                                  className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-white rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition"
-                                >
-                                  <Eye className="w-3 h-3 text-sky-400" />
-                                  <span>View</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleOpenEditService(service, e)}
-                                  title="Edit Devotional Service"
-                                  className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-amber-400 rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition"
-                                >
-                                  <Edit3 className="w-3 h-3 text-amber-400" />
-                                  <span>Edit</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleDeleteCategoryService(service, e)}
-                                  title="Delete Devotional Service"
-                                  className="px-2 py-1 bg-[#141414] hover:bg-rose-950/40 text-gray-300 hover:text-red-400 rounded border border-[#2C2C2C] hover:border-red-900/40 flex items-center gap-1 text-[11px] font-semibold transition"
-                                >
-                                  <Trash2 className="w-3 h-3 text-red-400" />
-                                  <span>Delete</span>
-                                </button>
+                              )}
+
+                              <div className="w-7 h-7 rounded-full border border-[#3A3A3A] bg-[#141414] flex items-center justify-center text-gray-400 group-hover:text-[#FFB300] group-hover:border-[#FFB300]/50 transition">
+                                <ArrowRight className="w-3.5 h-3.5" />
                               </div>
                             </div>
                           </div>
-                        );
-                      })}
+
+                          {/* Card Footer Action Bar */}
+                          <div className="pt-2.5 border-t border-[#2A2A2A] flex items-center justify-between text-xs">
+                            <span className="text-[11px] text-gray-400 font-mono flex items-center gap-1">
+                              <span className="text-gray-500">ID:</span>
+                              <span className="text-amber-400/90">{sKey}</span>
+                            </span>
+
+                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              <label
+                                title="Upload / Replace Category Image"
+                                className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-emerald-400 rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition cursor-pointer"
+                              >
+                                <Upload className="w-3 h-3 text-emerald-400" />
+                                <span>Image</span>
+                                <input
+                                  type="file"
+                                  accept="image/png, image/jpeg, image/webp"
+                                  onChange={(e) => handleQuickServiceArtworkUpload(service.id || service.serviceId, e)}
+                                  className="hidden"
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const sKey = service.serviceId || service.id;
+                                  setSelectedParentCategoryFilter(sKey);
+                                  loadSubcategories(1, '', selectedLang, sKey);
+                                  setActiveTab('subcategories');
+                                }}
+                                title="Manage Subcategories under this Category"
+                                className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded border border-amber-500/30 flex items-center gap-1 text-[11px] font-semibold transition"
+                              >
+                                <Layers className="w-3 h-3 text-amber-400" />
+                                <span>Subcategories</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleOpenViewService(service, e)}
+                                title="View Details by ID"
+                                className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-white rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition"
+                              >
+                                <Eye className="w-3 h-3 text-sky-400" />
+                                <span>View</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleOpenEditService(service, e)}
+                                title="Edit Devotional Service"
+                                className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-amber-400 rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition"
+                              >
+                                <Edit3 className="w-3 h-3 text-amber-400" />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteCategoryService(service, e)}
+                                title="Delete Devotional Service"
+                                className="px-2 py-1 bg-[#141414] hover:bg-rose-950/40 text-gray-300 hover:text-red-400 rounded border border-[#2C2C2C] hover:border-red-900/40 flex items-center gap-1 text-[11px] font-semibold transition"
+                              >
+                                <Trash2 className="w-3 h-3 text-red-400" />
+                                <span>Delete</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               )}
 
@@ -6466,9 +6508,7 @@ export default function EnterpriseSuperAdminDashboard() {
                               })
                             )}
                           </select>
-                          <span className="text-[10px] text-emerald-400/80 block mt-1 font-mono">
-                            Dynamically fetched from DB (`/admin/deities`) via API
-                          </span>
+
                         </div>
                       </div>
 
