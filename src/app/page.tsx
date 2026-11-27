@@ -670,6 +670,7 @@ export default function EnterpriseSuperAdminDashboard() {
   const [typeFormStatus, setTypeFormStatus] = useState<string>('active');
   const [typeStatusFilter, setTypeStatusFilter] = useState<string>('all');
   const [selectedSubcategoryForTypes, setSelectedSubcategoryForTypes] = useState<string>('all');
+  const [subcategoriesTypeCounts, setSubcategoriesTypeCounts] = useState<{ [key: string]: number }>({});
   const [parentLookupList, setParentLookupList] = useState<ParentLookupItem[]>([]);
   const parentLookupListRef = useRef<ParentLookupItem[]>([]);
   const [parentCategoryCounts, setParentCategoryCounts] = useState<{ [key: string]: number }>({
@@ -1530,8 +1531,26 @@ export default function EnterpriseSuperAdminDashboard() {
     return found ? String(found.id) : keyOrId;
   }, [parentLookupList]);
 
+  // Dynamically compute and cache real-time Types counts for every Subcategory from DB
+  const loadSubcategoriesTypeCounts = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/content?limit=2000`);
+      const json = await res.json();
+      const items = json && Array.isArray(json.data) ? json.data : (Array.isArray(json) ? json : []);
+      const counts: Record<string, number> = {};
+      items.forEach((item: any) => {
+        if (item.categoryId) {
+          const key = String(item.categoryId);
+          counts[key] = (counts[key] || 0) + 1;
+        }
+      });
+      setSubcategoriesTypeCounts(counts);
+    } catch (_) { }
+  }, []);
+
   const loadSubcategories = useCallback((pageNum = 1, search = subSearch, lang = selectedLang, parentId = selectedParentCategoryFilter, currentLimit = subLimit, status = subcategoryStatusFilter) => {
     setLoading(true);
+    loadSubcategoriesTypeCounts();
     const url = new URL(`${API_BASE_URL}/admin/subcategories`);
     url.searchParams.set('page', String(pageNum));
     url.searchParams.set('limit', String(currentLimit));
@@ -2356,6 +2375,7 @@ export default function EnterpriseSuperAdminDashboard() {
       loadParentLookup(selectedLang);
       loadAllSubcategoriesList(selectedLang);
       loadDeities(selectedLang);
+      loadSubcategoriesTypeCounts();
     } else if (activeTab === 'devotional_services') {
       loadCategoryServices();
       loadAllSubcategoriesList(selectedLang);
@@ -2366,6 +2386,7 @@ export default function EnterpriseSuperAdminDashboard() {
       loadDevotionalContent(1, searchQuery);
       loadAllSubcategoriesList(selectedLang);
       loadParentLookup(selectedLang);
+      loadSubcategoriesTypeCounts();
     } else if (activeTab === 'festivals') {
       loadFestivals(1, searchQuery);
     } else if (activeTab === 'panchangam') {
@@ -3259,6 +3280,7 @@ export default function EnterpriseSuperAdminDashboard() {
       }
       setPageMode('LIST');
       loadDevotionalContent(1, searchQuery, String(typeFormCategoryId), typeLimit);
+      loadSubcategoriesTypeCounts();
     } catch (e: any) {
       alert('Error saving type: ' + e.message);
     } finally {
@@ -3274,6 +3296,7 @@ export default function EnterpriseSuperAdminDashboard() {
       if (res.ok) {
         showToast('Type Deleted', `"${title}" was removed.`);
         loadDevotionalContent(typePage, searchQuery, selectedSubcategoryForTypes, typeLimit);
+        loadSubcategoriesTypeCounts();
       } else {
         alert('Failed to delete type');
       }
@@ -8304,7 +8327,9 @@ export default function EnterpriseSuperAdminDashboard() {
                               const pSlug = sub.parentSlug || sub.parentKey || 'pooja';
                               const rawImg = sub.imageUrl || sub.image || '';
                               const cleanImg = rawImg && !rawImg.includes('.webp') ? rawImg : '';
-                              const countNum = sub.typesCount !== undefined ? sub.typesCount : 0;
+                              const countNum = (typeof sub.typesCount === 'number' && sub.typesCount > 0)
+                                ? sub.typesCount
+                                : (subcategoriesTypeCounts[String(sub.id)] ?? subcategoriesTypeCounts[sub.slug] ?? (typeof sub.typesCount === 'number' ? sub.typesCount : 0));
 
                               return (
                                 <tr
@@ -8417,8 +8442,11 @@ export default function EnterpriseSuperAdminDashboard() {
                                         setPageMode('LIST');
                                         loadDevotionalContent(1, '', String(sub.id));
                                       }}
-                                      title="View and manage worship types under this subcategory"
-                                      className="inline-flex items-center justify-center min-w-[2.2rem] px-2.5 py-0.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 rounded-full font-bold font-mono text-xs transition shadow-sm hover:scale-105"
+                                      title={`View ${countNum} worship types under this subcategory`}
+                                      className={`inline-flex items-center justify-center min-w-[2.2rem] px-2.5 py-0.5 rounded-full font-bold font-mono text-xs transition shadow-sm hover:scale-105 ${countNum > 0
+                                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-[0_0_10px_rgba(255,179,0,0.2)]'
+                                        : 'bg-neutral-800/60 text-gray-400 border border-neutral-700/60 hover:border-neutral-600'
+                                        }`}
                                     >
                                       <span>{countNum}</span>
                                     </button>
@@ -8571,11 +8599,14 @@ export default function EnterpriseSuperAdminDashboard() {
                           className="bg-[#141414] border border-[#2C2C2C] rounded-lg px-3 py-2 text-xs text-amber-400 focus:outline-none focus:border-[#FFB300] max-w-xs truncate"
                         >
                           <option value="all">All Subcategories ({stats?.activeSubcategories ?? (allSubcategoriesList.length || subTotalCount || 134)})</option>
-                          {(allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories).map(s => (
-                            <option key={s.id} value={s.id}>
-                              {s.parentTitle ? `${s.parentTitle} ➔ ` : ''}{s.title} (/{s.slug})
-                            </option>
-                          ))}
+                          {(allSubcategoriesList.length > 0 ? allSubcategoriesList : subcategories).map(s => {
+                            const sCount = subcategoriesTypeCounts[String(s.id)] ?? s.typesCount ?? 0;
+                            return (
+                              <option key={s.id} value={s.id}>
+                                {s.parentTitle ? `${s.parentTitle} ➔ ` : ''}{s.title} ({sCount} {sCount === 1 ? 'type' : 'types'})
+                              </option>
+                            );
+                          })}
                         </select>
                       </div>
 
