@@ -747,10 +747,15 @@ export default function EnterpriseSuperAdminDashboard() {
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
 
-  // Devotional Services State (strictly fetched from DB via API, zero mock/fake data)
+  // Devotional Services State (strictly fetched from DB via API with server-side search, filter, pagination)
   const [devotionalServices, setDevotionalServices] = useState<any[]>([]);
   const [loadingServices, setLoadingServices] = useState<boolean>(false);
   const [serviceSearch, setServiceSearch] = useState<string>('');
+  const [serviceStatusFilter, setServiceStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [servicePage, setServicePage] = useState<number>(1);
+  const [serviceLimit, setServiceLimit] = useState<number>(10);
+  const [serviceTotalPages, setServiceTotalPages] = useState<number>(1);
+  const [serviceTotalCount, setServiceTotalCount] = useState<number>(9);
   const [selectedViewService, setSelectedViewService] = useState<any | null>(null);
   const [isViewServiceModalOpen, setIsViewServiceModalOpen] = useState(false);
   const [editingCategoryService, setEditingCategoryService] = useState<any | null>(null);
@@ -1673,34 +1678,77 @@ export default function EnterpriseSuperAdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Load Devotional Services directly from /categories/services API
-  const loadCategoryServices = useCallback(async () => {
+  // Load Devotional Services directly from API with server-side pagination, search, status filter
+  const loadCategoryServices = useCallback(async (
+    pageNum = 1,
+    search = serviceSearch,
+    status = serviceStatusFilter,
+    currentLimit = serviceLimit
+  ) => {
     setLoadingServices(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/categories/services`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          setDevotionalServices(json.data);
-          return;
-        }
-      }
-      const adminRes = await fetch(`${API_BASE_URL}/admin/category-services`);
+      // 1. Try admin endpoint first with query params
+      const adminUrl = new URL(`${API_BASE_URL}/admin/category-services`);
+      adminUrl.searchParams.set('page', String(pageNum));
+      adminUrl.searchParams.set('limit', String(currentLimit));
+      if (search && search.trim() !== '') adminUrl.searchParams.set('search', search.trim());
+      if (status && status !== 'all') adminUrl.searchParams.set('status', status);
+
+      const adminRes = await fetch(adminUrl.toString());
       if (adminRes.ok) {
         const adminJson = await adminRes.json();
-        if (adminJson?.data && Array.isArray(adminJson.data) && adminJson.data.length > 0) {
+        if (adminJson?.data && Array.isArray(adminJson.data)) {
           setDevotionalServices(adminJson.data);
+          if (adminJson.meta) {
+            setServiceTotalCount(adminJson.meta.totalRecords ?? adminJson.total ?? adminJson.data.length);
+            setServiceTotalPages(adminJson.meta.totalPages ?? 1);
+            setServicePage(adminJson.meta.page ?? pageNum);
+          } else {
+            setServiceTotalCount(adminJson.total ?? adminJson.data.length);
+            setServiceTotalPages(Math.ceil((adminJson.total ?? adminJson.data.length) / currentLimit) || 1);
+            setServicePage(pageNum);
+          }
           return;
         }
       }
+
+      // 2. Try categories/services endpoint
+      const url = new URL(`${API_BASE_URL}/categories/services`);
+      url.searchParams.set('page', String(pageNum));
+      url.searchParams.set('limit', String(currentLimit));
+      url.searchParams.set('lang', selectedLang);
+      if (search && search.trim() !== '') url.searchParams.set('search', search.trim());
+      if (status && status !== 'all') url.searchParams.set('status', status);
+
+      const res = await fetch(url.toString());
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.data && Array.isArray(json.data)) {
+          setDevotionalServices(json.data);
+          if (json.meta) {
+            setServiceTotalCount(json.meta.totalRecords ?? json.count ?? json.data.length);
+            setServiceTotalPages(json.meta.totalPages ?? 1);
+            setServicePage(json.meta.page ?? pageNum);
+          } else {
+            setServiceTotalCount(json.count ?? json.total ?? json.data.length);
+            setServiceTotalPages(Math.ceil((json.count ?? json.total ?? json.data.length) / currentLimit) || 1);
+            setServicePage(pageNum);
+          }
+          return;
+        }
+      }
+
       setDevotionalServices([]);
+      setServiceTotalCount(0);
+      setServiceTotalPages(1);
+      setServicePage(1);
     } catch (e) {
       console.warn('Notice loading category services:', e);
       setDevotionalServices([]);
     } finally {
       setLoadingServices(false);
     }
-  }, []);
+  }, [serviceSearch, serviceStatusFilter, serviceLimit, selectedLang]);
 
   // 5. Load Audio
   const loadAudio = useCallback(() => {
@@ -4815,7 +4863,7 @@ export default function EnterpriseSuperAdminDashboard() {
 
                   <div className="flex flex-wrap items-center gap-3">
                     <button
-                      onClick={loadCategoryServices}
+                      onClick={() => loadCategoryServices()}
                       disabled={loadingServices}
                       className="px-3 py-1.5 bg-[#141414] hover:bg-[#252525] border border-[#2C2C2C] rounded-lg text-xs font-semibold flex items-center gap-1.5 text-gray-300 transition"
                     >
@@ -4835,17 +4883,81 @@ export default function EnterpriseSuperAdminDashboard() {
                   </div>
                 </div>
 
-                {/* Search Bar */}
-                <div className="mt-5 pt-4 border-t border-[#2C2C2C]">
-                  <div className="relative max-w-md">
+                {/* Search Bar & Server-Side Filters */}
+                <div className="mt-5 pt-4 border-t border-[#2C2C2C] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                  <div className="relative flex-1 max-w-md">
                     <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Search devotional services by title, subtitle, or route..."
+                      placeholder="Search services server-side by title, subtitle, or route..."
                       value={serviceSearch}
-                      onChange={(e) => setServiceSearch(e.target.value)}
-                      className="w-full bg-[#141414] border border-[#2C2C2C] rounded-lg pl-9 pr-4 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-[#FFB300]"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setServiceSearch(val);
+                        loadCategoryServices(1, val, serviceStatusFilter, serviceLimit);
+                      }}
+                      className="w-full bg-[#141414] border border-[#2C2C2C] rounded-lg pl-9 pr-8 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-[#FFB300]"
                     />
+                    {serviceSearch && (
+                      <button
+                        onClick={() => {
+                          setServiceSearch('');
+                          loadCategoryServices(1, '', serviceStatusFilter, serviceLimit);
+                        }}
+                        className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-200 text-xs"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Server-Side Status Filter */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 font-medium">Status:</span>
+                    <div className="flex items-center bg-[#141414] border border-[#2C2C2C] rounded-lg p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setServiceStatusFilter('all');
+                          loadCategoryServices(1, serviceSearch, 'all', serviceLimit);
+                        }}
+                        className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                          serviceStatusFilter === 'all'
+                            ? 'bg-[#FFB300] text-black shadow'
+                            : 'text-gray-400 hover:text-gray-200'
+                        }`}
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setServiceStatusFilter('active');
+                          loadCategoryServices(1, serviceSearch, 'active', serviceLimit);
+                        }}
+                        className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                          serviceStatusFilter === 'active'
+                            ? 'bg-emerald-600 text-white shadow'
+                            : 'text-gray-400 hover:text-gray-200'
+                        }`}
+                      >
+                        Active
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setServiceStatusFilter('inactive');
+                          loadCategoryServices(1, serviceSearch, 'inactive', serviceLimit);
+                        }}
+                        className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                          serviceStatusFilter === 'inactive'
+                            ? 'bg-rose-600 text-white shadow'
+                            : 'text-gray-400 hover:text-gray-200'
+                        }`}
+                      >
+                        Inactive
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4865,7 +4977,7 @@ export default function EnterpriseSuperAdminDashboard() {
                   </p>
                   <div className="flex items-center gap-3 mt-4">
                     <button
-                      onClick={loadCategoryServices}
+                      onClick={() => loadCategoryServices()}
                       className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-lg transition"
                     >
                       Reload from API
@@ -4896,16 +5008,7 @@ export default function EnterpriseSuperAdminDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#282828]">
-                        {devotionalServices
-                          .filter((s) => {
-                            if (!serviceSearch.trim()) return true;
-                            const q = serviceSearch.toLowerCase();
-                            const matchTitle = s.title?.toLowerCase().includes(q);
-                            const matchSub = s.sub?.toLowerCase().includes(q);
-                            const matchId = (s.serviceId || s.id)?.toLowerCase().includes(q);
-                            return matchTitle || matchSub || matchId;
-                          })
-                          .map((service, index) => {
+                        {devotionalServices.map((service, index) => {
                             const sKey = service.serviceId || service.id;
                             const artworkSrc = service.artwork || categoryArtworkMap[sKey] || categoryArtworkMap[service.id];
                             const subCount = parentCategoryCounts[sKey] ?? parentCategoryCounts[service.id] ?? 0;
@@ -5064,6 +5167,53 @@ export default function EnterpriseSuperAdminDashboard() {
                           })}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Server-Side Pagination Footer */}
+                  <div className="p-4 border-t border-[#2C2C2C] flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#151515]">
+                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                      <span>
+                        Showing page <strong className="text-gray-200">{servicePage}</strong> of <strong className="text-gray-200">{serviceTotalPages}</strong> (Total <strong className="text-gray-200">{serviceTotalCount}</strong> devotional services)
+                      </span>
+                      <span className="text-neutral-600">|</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>Rows per page:</span>
+                        <select
+                          value={serviceLimit}
+                          onChange={(e) => {
+                            const newLim = Number(e.target.value);
+                            setServiceLimit(newLim);
+                            loadCategoryServices(1, serviceSearch, serviceStatusFilter, newLim);
+                          }}
+                          className="bg-[#1E1E1E] border border-[#2C2C2C] rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-amber-500"
+                        >
+                          <option value={5}>5</option>
+                          <option value={10}>10</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        disabled={servicePage <= 1}
+                        onClick={() => loadCategoryServices(servicePage - 1, serviceSearch, serviceStatusFilter, serviceLimit)}
+                        className="px-3 py-1.5 bg-[#1E1E1E] border border-[#2C2C2C] rounded-lg disabled:opacity-40 hover:bg-neutral-800 text-xs text-gray-300 transition flex items-center gap-1"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span>Prev</span>
+                      </button>
+                      <span className="text-xs font-semibold px-2 text-amber-400">{servicePage} / {serviceTotalPages}</span>
+                      <button
+                        disabled={servicePage >= serviceTotalPages}
+                        onClick={() => loadCategoryServices(servicePage + 1, serviceSearch, serviceStatusFilter, serviceLimit)}
+                        className="px-3 py-1.5 bg-[#1E1E1E] border border-[#2C2C2C] rounded-lg disabled:opacity-40 hover:bg-neutral-800 text-xs text-gray-300 transition flex items-center gap-1"
+                      >
+                        <span>Next</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
