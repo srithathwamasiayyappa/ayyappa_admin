@@ -312,7 +312,7 @@ const categoryArtworkMap: Record<string, string> = {
   'live-streams': '/images/categories/art-live-trans.png',
   live: '/images/categories/art-live-trans.png',
   panchangam: '/images/categories/art-panchangam-trans.png',
-  festivals: '/images/categories/art-stotras-trans.png',
+  festivals: '/images/categories/art-festivals-trans.png',
   temples: '/images/categories/art-temples-trans.png',
   donations: '/images/categories/art-donations-trans.png',
 };
@@ -417,6 +417,13 @@ export default function EnterpriseSuperAdminDashboard() {
 
   // Check auth synchronously on client mount before rendering anything
   useEffect(() => {
+    try {
+      const storedLogo = localStorage.getItem('ayyappa_admin_logo');
+      if (storedLogo) {
+        setAppLogoUrl(storedLogo);
+        setCustomLogoInput(storedLogo);
+      }
+    } catch (_) { }
     loadAppLogo();
     try {
       const token = localStorage.getItem('ayyappa_admin_token');
@@ -705,14 +712,7 @@ export default function EnterpriseSuperAdminDashboard() {
     return 'en';
   });
   const [tickerText, setTickerText] = useState('');
-  const [appLogoUrl, setAppLogoUrl] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        return localStorage.getItem('ayyappa_admin_logo') || '';
-      } catch { }
-    }
-    return '';
-  });
+  const [appLogoUrl, setAppLogoUrl] = useState<string>('');
   const [customLogoInput, setCustomLogoInput] = useState('');
   const [isUpdatingLogo, setIsUpdatingLogo] = useState(false);
 
@@ -3999,6 +3999,7 @@ export default function EnterpriseSuperAdminDashboard() {
           }}
         >
           <img
+            suppressHydrationWarning
             src={resolveLogoDisplayUrl(appLogoUrl)}
             alt="Saranam Ayyappa Logo"
             style={{
@@ -4070,6 +4071,7 @@ export default function EnterpriseSuperAdminDashboard() {
             <div className="text-center space-y-2.5">
               <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 border-[#D4AF37] bg-[#030F0A] flex items-center justify-center p-2 mx-auto shadow-[0_10px_25px_rgba(0,0,0,0.8),0_0_20px_rgba(212,175,55,0.25)] relative overflow-hidden group">
                 <img
+                  suppressHydrationWarning
                   src={resolveLogoDisplayUrl(appLogoUrl)}
                   alt="Saranam Ayyappa Official Emblem"
                   className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(255,179,0,0.3)] transition transform group-hover:scale-105 duration-300"
@@ -4635,6 +4637,7 @@ export default function EnterpriseSuperAdminDashboard() {
         <div className="flex flex-col h-full">
           <div className="p-4 border-b border-[#2C2C2C] flex items-center justify-center">
             <img
+              suppressHydrationWarning
               src={resolveLogoDisplayUrl(appLogoUrl)}
               alt="Saranam Ayyappa — Thathwamasi"
               className="w-full max-h-24 object-contain rounded-xl shadow-lg border border-[var(--admin-gold)]/40 hover:border-[var(--admin-gold)] transition"
@@ -11235,6 +11238,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     </span>
                     <div className="relative group w-44 h-44 rounded-2xl bg-black/60 border-2 border-[var(--admin-gold)]/60 flex items-center justify-center p-3 shadow-2xl overflow-hidden">
                       <img
+                        suppressHydrationWarning
                         src={resolveLogoDisplayUrl(appLogoUrl)}
                         alt="Active Saranam Ayyappa Logo"
                         className="max-w-full max-h-full object-contain drop-shadow-[0_4px_12px_rgba(255,179,0,0.25)] transition duration-300 group-hover:scale-105"
