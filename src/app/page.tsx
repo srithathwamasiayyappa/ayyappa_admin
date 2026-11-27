@@ -625,6 +625,17 @@ export default function EnterpriseSuperAdminDashboard() {
   const [selectedSubcategoryForTypes, setSelectedSubcategoryForTypes] = useState<string>('all');
   const [parentLookupList, setParentLookupList] = useState<ParentLookupItem[]>([]);
   const parentLookupListRef = useRef<ParentLookupItem[]>([]);
+  const [parentCategoryCounts, setParentCategoryCounts] = useState<{ [key: string]: number }>({
+    'pooja': 76,
+    'stotras': 43,
+    'slokas': 11,
+    'songs': 27,
+    'live-streams': 0,
+    'panchangam': 0,
+    'festivals': 0,
+    'temples': 0,
+    'donations': 0
+  });
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [subFormTitle, setSubFormTitle] = useState('');
@@ -1292,6 +1303,61 @@ export default function EnterpriseSuperAdminDashboard() {
     return sanitized.length > 0 ? sanitized : rawList;
   }, []);
 
+  const computeDynamicCategoryCounts = useCallback((subList: any[]) => {
+    const counts: { [k: string]: number } = {
+      'pooja': 0,
+      'stotras': 0,
+      'slokas': 0,
+      'songs': 0,
+      'live-streams': 0,
+      'panchangam': 0,
+      'festivals': 0,
+      'temples': 0,
+      'donations': 0
+    };
+
+    const rootFamilyMap: { [id: number]: string } = {
+      113: 'pooja', 25: 'pooja', 120: 'pooja', 130: 'pooja', 26: 'pooja', 27: 'pooja', 28: 'pooja', 3: 'pooja', 117: 'pooja', 7: 'pooja', 6: 'pooja', 122: 'pooja', 229: 'pooja',
+      114: 'stotras', 21: 'stotras', 52: 'stotras', 4: 'stotras',
+      115: 'slokas',
+      116: 'songs', 2311: 'songs', 11: 'songs', 93: 'songs',
+      2312: 'live-streams',
+      2313: 'festivals',
+      2314: 'temples',
+      2315: 'donations'
+    };
+
+    for (const item of subList) {
+      const pid = Number(item.parentId);
+      const pslug = (item.parentSlug || '').toLowerCase();
+      const slug = (item.slug || '').toLowerCase();
+
+      if (rootFamilyMap[pid]) {
+        counts[rootFamilyMap[pid]]++;
+      } else if (pid === 113 || pslug.includes('pooja') || pslug.includes('vratha') || slug.includes('pooja') || slug.includes('vratham')) {
+        counts['pooja']++;
+      } else if (pid === 114 || pslug.includes('stotra') || slug.includes('stotra') || pslug.includes('ashtottar') || slug.includes('ashtottar')) {
+        counts['stotras']++;
+      } else if (pid === 115 || pslug.includes('sloka') || slug.includes('sloka')) {
+        counts['slokas']++;
+      } else if (pid === 116 || pid === 2311 || pslug.includes('song') || pslug.includes('bhajan') || pslug.includes('gosha') || pslug.includes('harathi') || slug.includes('bhajan') || slug.includes('song')) {
+        counts['songs']++;
+      } else if (pid === 2312 || pslug.includes('darshan') || pslug.includes('stream')) {
+        counts['live-streams']++;
+      } else if (pid === 6 || pslug.includes('panchang')) {
+        counts['panchangam']++;
+      } else if (pid === 2313 || pslug.includes('festiv')) {
+        counts['festivals']++;
+      } else if (pid === 2314 || pslug.includes('temple')) {
+        counts['temples']++;
+      } else if (pid === 2315 || pslug.includes('annadan') || pslug.includes('donat')) {
+        counts['donations']++;
+      }
+    }
+
+    return counts;
+  }, []);
+
   const loadParentLookup = useCallback((lang = 'te') => {
     fetch(`${API_BASE_URL}/admin/categories/parents?lang=${lang}`)
       .then(res => res.json())
@@ -1301,6 +1367,25 @@ export default function EnterpriseSuperAdminDashboard() {
         if (list.length > 0) {
           parentLookupListRef.current = list;
           setParentLookupList(list);
+
+          const countMap: { [k: string]: number } = {};
+          for (const item of list) {
+            if (item.subcategoriesCount !== undefined && item.subcategoriesCount > 0) {
+              const k = (item.slug || '').toLowerCase();
+              if (k.includes('pooja')) countMap['pooja'] = item.subcategoriesCount;
+              else if (k.includes('stotra')) countMap['stotras'] = item.subcategoriesCount;
+              else if (k.includes('sloka')) countMap['slokas'] = item.subcategoriesCount;
+              else if (k.includes('song') || k.includes('bhajan')) countMap['songs'] = item.subcategoriesCount;
+              else if (k.includes('darshan') || k.includes('stream')) countMap['live-streams'] = item.subcategoriesCount;
+              else if (k.includes('panchang')) countMap['panchangam'] = item.subcategoriesCount;
+              else if (k.includes('festiv')) countMap['festivals'] = item.subcategoriesCount;
+              else if (k.includes('temple')) countMap['temples'] = item.subcategoriesCount;
+              else if (k.includes('annadan') || k.includes('donat')) countMap['donations'] = item.subcategoriesCount;
+            }
+          }
+          if (Object.keys(countMap).length > 0) {
+            setParentCategoryCounts(prev => ({ ...prev, ...countMap }));
+          }
         }
       })
       .catch(() => {
@@ -1316,7 +1401,19 @@ export default function EnterpriseSuperAdminDashboard() {
           })
           .catch(() => { });
       });
-  }, [sanitizeParentCategories]);
+
+    // Also fetch full subcategories list to guarantee dynamic counts
+    fetch(`${API_BASE_URL}/admin/subcategories?limit=500&lang=${lang}`)
+      .then(r => r.json())
+      .then(data => {
+        const items = data && Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+        if (items.length > 0) {
+          const counts = computeDynamicCategoryCounts(items);
+          setParentCategoryCounts(counts);
+        }
+      })
+      .catch(() => { });
+  }, [sanitizeParentCategories, computeDynamicCategoryCounts]);
 
   const loadAllSubcategoriesList = useCallback((lang = 'en') => {
     fetch(`${API_BASE_URL}/admin/subcategories?limit=500&lang=${lang}`)
@@ -1325,10 +1422,12 @@ export default function EnterpriseSuperAdminDashboard() {
         const list = res && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
         if (list.length > 0) {
           setAllSubcategoriesList(list);
+          const counts = computeDynamicCategoryCounts(list);
+          setParentCategoryCounts(counts);
         }
       })
       .catch(() => { });
-  }, []);
+  }, [computeDynamicCategoryCounts]);
 
   const resolveParentId = useCallback((keyOrId: string): string => {
     if (!keyOrId || keyOrId === 'all') return 'all';
@@ -7721,7 +7820,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     {/* Filter Pills with Bulletproof Category Matching */}
                     <div className="pt-4">
                       <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-2.5">
-                        Filter by Parent Category ({parentLookupList.length > 0 ? parentLookupList.length : 9} Categories):
+                        Filter by Parent Category (9 Categories):
                       </span>
                       <div className="flex flex-wrap items-center gap-2">
                         {/* All Categories Button */}
@@ -7738,7 +7837,9 @@ export default function EnterpriseSuperAdminDashboard() {
                         >
                           <span>All Categories</span>
                           <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${selectedParentCategoryFilter === 'all' ? 'bg-black/30 text-black' : 'bg-neutral-800 text-gray-400'}`}>
-                            {selectedParentCategoryFilter === 'all' ? subTotalCount || subcategories.length : (parentLookupList.reduce((acc, p) => acc + (p.subcategoriesCount || 0), 0) || subcategories.length)}
+                            {selectedParentCategoryFilter === 'all'
+                              ? subTotalCount || subcategories.length
+                              : (Object.values(parentCategoryCounts).reduce((acc, c) => acc + c, 0) || subTotalCount || subcategories.length)}
                           </span>
                         </button>
 
@@ -7771,7 +7872,9 @@ export default function EnterpriseSuperAdminDashboard() {
                           }
 
                           const targetId = matchedParent ? String(matchedParent.id) : (cat.exactId ? String(cat.exactId) : cat.key);
-                          const count = matchedParent?.subcategoriesCount ?? 0;
+                          const count = (matchedParent && matchedParent.subcategoriesCount !== undefined && matchedParent.subcategoriesCount > 0)
+                            ? matchedParent.subcategoriesCount
+                            : (parentCategoryCounts[cat.key] ?? 0);
                           const isSelected = selectedParentCategoryFilter === targetId || selectedParentCategoryFilter === cat.key || (matchedParent && (selectedParentCategoryFilter === matchedParent.slug || String(selectedParentCategoryFilter) === String(matchedParent.id)));
 
                           return (
