@@ -6170,59 +6170,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     </div>
                   )}
 
-                  {/* Chanting Steps Sequence (Ordered) */}
-                  <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-5 shadow-xl space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-[#16422F]">
-                      <span className="text-xs font-bold text-gray-200 uppercase tracking-wide">
-                        Chanting Sequence &amp; Steps
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenCreateType(viewDetail.id)}
-                        className="px-2.5 py-1 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] rounded-lg text-xs font-bold transition flex items-center gap-1 shadow"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add Step</span>
-                      </button>
-                    </div>
 
-                    {viewDetail.contents && viewDetail.contents.length > 0 ? (
-                      <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 text-xs">
-                        {viewDetail.contents.map((step, idx) => (
-                          <div
-                            key={step.id || idx}
-                            className="bg-[#061A13] p-3 rounded-lg border border-[#16422F] hover:border-[#FFB300]/40 transition flex items-center justify-between gap-3 group"
-                          >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-[#FFB300] font-bold text-[10px]">#{idx + 1}</span>
-                                <span className="font-semibold text-gray-100 truncate">{step.title}</span>
-                              </div>
-                              {step.sacredText && (
-                                <p className="text-gray-400 text-[11px] truncate mt-0.5">{step.sacredText}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditType(step as any)}
-                                className="p-1.5 hover:bg-[#0E2F23] rounded text-[#FFB300] transition"
-                                title="Edit this Step / Verse"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-6 text-center text-xs text-gray-400 bg-[#061A13] rounded-lg border border-[#16422F]">
-                        <BookOpen className="w-6 h-6 mx-auto mb-2 text-[#FFB300] opacity-60" />
-                        <p className="font-semibold text-gray-300">No subcategory types / verses attached yet.</p>
-                        <p className="text-[11px] text-gray-400 mt-1">Click &quot;+ Add Step&quot; above to create worship steps and recitations under this subcategory.</p>
-                      </div>
-                    )}
-                  </div>
 
                 </div>
 
@@ -7020,59 +6968,7 @@ export default function EnterpriseSuperAdminDashboard() {
                     </div>
                   )}
 
-                  {/* Card 4: Chanting Sequence & Steps (Ordered) */}
-                  <div className="bg-[#082219] border border-[#1A4E38] rounded-xl p-5 shadow-xl space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-[#16422F]">
-                      <span className="text-xs font-bold text-gray-200 uppercase tracking-wide">
-                        Chanting Sequence &amp; Steps
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenCreateType(editingSubId || viewDetail?.id)}
-                        className="px-2.5 py-1 bg-[#FFB300] hover:bg-[#FFA000] text-[#071C14] rounded-lg text-xs font-bold transition flex items-center gap-1 shadow"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add Step</span>
-                      </button>
-                    </div>
 
-                    {viewDetail?.contents && viewDetail.contents.length > 0 ? (
-                      <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 text-xs">
-                        {viewDetail.contents.map((step, idx) => (
-                          <div
-                            key={step.id || idx}
-                            className="bg-[#061A13] p-3 rounded-lg border border-[#16422F] hover:border-[#FFB300]/40 transition flex items-center justify-between gap-3 group"
-                          >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-[#FFB300] font-bold text-[10px]">#{idx + 1}</span>
-                                <span className="font-semibold text-gray-100 truncate">{step.title}</span>
-                              </div>
-                              {step.sacredText && (
-                                <p className="text-gray-400 text-[11px] truncate mt-0.5">{step.sacredText}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditType(step as any)}
-                                className="p-1.5 hover:bg-[#0E2F23] rounded text-[#FFB300] transition"
-                                title="Edit this Step / Verse"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-6 text-center text-xs text-gray-400 bg-[#061A13] rounded-lg border border-[#16422F]">
-                        <BookOpen className="w-6 h-6 mx-auto mb-2 text-[#FFB300] opacity-60" />
-                        <p className="font-semibold text-gray-300">No subcategory types / verses attached yet.</p>
-                        <p className="text-[11px] text-gray-400 mt-1">Click &quot;+ Add Step&quot; above to create worship steps and recitations under this subcategory.</p>
-                      </div>
-                    )}
-                  </div>
 
                 </div>
               </div>
