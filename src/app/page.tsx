@@ -132,6 +132,8 @@ interface SubcategoryItem {
   displayOrder?: number;
   isAudio?: boolean;
   imageUrl?: string;
+  deityId?: string;
+  deityName?: string;
 }
 
 interface ParentLookupItem {
@@ -569,6 +571,7 @@ export default function EnterpriseSuperAdminDashboard() {
   const [subFormTitle, setSubFormTitle] = useState('');
   const [subFormSlug, setSubFormSlug] = useState('');
   const [subFormParentId, setSubFormParentId] = useState<number | ''>('');
+  const [subFormDeityId, setSubFormDeityId] = useState<string>('ayyappa');
   const [subFormDescription, setSubFormDescription] = useState('');
   const [subFormImageUrl, setSubFormImageUrl] = useState('');
 
@@ -2293,6 +2296,7 @@ export default function EnterpriseSuperAdminDashboard() {
     setEditingSubId(null);
     setSubFormTitle('');
     setSubFormSlug('');
+    setSubFormDeityId('ayyappa');
     let targetParent = preselectedParentId;
     if (!targetParent && selectedParentCategoryFilter !== 'all') {
       const match = parentLookupList.find(p => p.slug === selectedParentCategoryFilter || String(p.id) === String(selectedParentCategoryFilter));
@@ -2313,6 +2317,7 @@ export default function EnterpriseSuperAdminDashboard() {
     setSubFormTitle(item.title);
     setSubFormSlug(item.slug);
     setSubFormParentId(item.parentId);
+    setSubFormDeityId((item as any).deityId || (item as any).deity || 'ayyappa');
     setSubFormDescription(item.description || '');
     setSubFormImageUrl(item.imageUrl || '');
     setIsSubModalOpen(true);
@@ -2326,6 +2331,9 @@ export default function EnterpriseSuperAdminDashboard() {
         const d = json.data;
         setViewDetail(d);
         setActiveViewTypeTab('all');
+        if (d.deityId || d.deity) {
+          setSubFormDeityId(d.deityId || d.deity);
+        }
         const exact = d.translations?.find((t: any) => t.code === selectedLang);
         if (exact) {
           setSubFormTitle(exact.title || '');
@@ -2432,7 +2440,9 @@ export default function EnterpriseSuperAdminDashboard() {
       isAudio: false,
       description: subFormDescription.trim(),
       lang: selectedLang,
-      imageUrl: subFormImageUrl.trim()
+      imageUrl: subFormImageUrl.trim(),
+      deityId: subFormDeityId,
+      deity: subFormDeityId
     };
 
     try {
@@ -6293,8 +6303,8 @@ export default function EnterpriseSuperAdminDashboard() {
                     </div>
 
                     <div className="space-y-3 text-xs">
-                      {/* Parent Category & Total Steps */}
-                      <div className="grid grid-cols-2 gap-3">
+                      {/* Parent Category & God / Goddess (Deity) Selection */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="bg-[#061A13] p-3 rounded-lg border border-[#16422F]">
                           <label className="text-[10px] text-gray-400 uppercase block font-semibold mb-1">Parent Category *</label>
                           <select
@@ -6310,10 +6320,37 @@ export default function EnterpriseSuperAdminDashboard() {
                             ))}
                           </select>
                         </div>
+
                         <div className="bg-[#061A13] p-3 rounded-lg border border-[#16422F]">
-                          <span className="text-[10px] text-gray-400 uppercase block font-semibold mb-1">Total Steps / Types</span>
-                          <span className="text-[#FFB300] font-bold text-xs block pt-1.5">
-                            {viewDetail?.contents?.length || 0} Sacred Steps
+                          <label className="text-[10px] text-[#FFB300] uppercase block font-semibold mb-1 flex items-center justify-between">
+                            <span className="flex items-center gap-1">
+                              <span>🕉️</span>
+                              <span>God / Goddess (Deity) *</span>
+                            </span>
+                            <span className="text-[9px] text-emerald-400 font-mono">User Filter</span>
+                          </label>
+                          <select
+                            value={subFormDeityId}
+                            onChange={(e) => setSubFormDeityId(e.target.value)}
+                            className="w-full bg-[#071C14] border border-[#1E5C41] rounded px-2.5 py-1.5 text-xs text-[#FEF08A] font-semibold focus:outline-none focus:border-[#FFB300]"
+                          >
+                            <option value="ayyappa">🛕 Lord Ayyappa (శ్రీ అయ్యప్ప స్వామి)</option>
+                            <option value="ganesha">🐘 Lord Ganesha (శ్రీ మహాగణపతి)</option>
+                            <option value="shiva">🔱 Lord Shiva (పరమశివుడు)</option>
+                            <option value="devi">🌸 Goddess Lakshmi / Durga (శ్రీ దుర్గా / లక్ష్మీ దేవి)</option>
+                            <option value="venkateswara">☀️ Lord Venkateswara (శ్రీ వేంకటేశ్వర స్వామి)</option>
+                            <option value="hanuman">🐒 Lord Hanuman (శ్రీ ఆంజనేయ స్వామి)</option>
+                            <option value="murugan">🦚 Lord Murugan (శ్రీ సుబ్రహ్మణ్య స్వామి)</option>
+                            {deities && deities
+                              .filter(d => !['ayyappa', 'ganesha', 'shiva', 'devi', 'venkateswara', 'hanuman', 'murugan'].includes(d.id.toLowerCase()))
+                              .map(d => (
+                                <option key={d.id} value={d.id}>
+                                  ✨ {d.name} {d.alternateName ? `(${d.alternateName})` : ''}
+                                </option>
+                              ))}
+                          </select>
+                          <span className="text-[10px] text-emerald-400/80 block mt-1 font-mono">
+                            Used in User Panel & Mobile App for deity filtering
                           </span>
                         </div>
                       </div>
@@ -7582,6 +7619,12 @@ export default function EnterpriseSuperAdminDashboard() {
                                         <span>📁</span>
                                         <span>{sub.parentTitle || pSlug}</span>
                                       </span>
+                                      {sub.deityId && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 mt-1 rounded text-[10px] font-medium bg-emerald-950/50 text-emerald-300 border border-emerald-800/40">
+                                          <span>🕉️</span>
+                                          <span className="capitalize">{sub.deityId.replace('-', ' ')}</span>
+                                        </span>
+                                      )}
                                     </td>
 
                                     <td className="px-5 py-3 whitespace-nowrap">
