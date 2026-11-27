@@ -23,6 +23,7 @@ export interface TranslationModalProps {
 
 const SUPPORTED_LANGUAGES = [
   { code: 'te', label: 'Telugu (తెలుగు)', isDefault: true, flag: '🚩' },
+  { code: 'en', label: 'English (ఆంగ్లం)', isDefault: true, flag: '🌐' },
   { code: 'kn', label: 'Kannada (ಕನ್ನಡ)', isDefault: true, flag: '🕉️' },
   { code: 'ta', label: 'Tamil (தமிழ்)', isDefault: true, flag: '🪔' },
   { code: 'hi', label: 'Hindi (हिन्दी)', isDefault: true, flag: '🇮🇳' },
@@ -35,12 +36,12 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({
   recordId,
   fields,
   apiBaseUrl,
-  currentLang = 'en',
+  currentLang = 'te',
   onApplyToEditor
 }) => {
-  const [sourceLang, setSourceLang] = useState('en');
-  const [selectedTargets, setSelectedTargets] = useState<string[]>(['te', 'kn', 'ta', 'hi']);
-  const [activeTab, setActiveTab] = useState<string>('te');
+  const [sourceLang, setSourceLang] = useState(currentLang || 'te');
+  const [selectedTargets, setSelectedTargets] = useState<string[]>(['en', 'kn', 'ta', 'hi']);
+  const [activeTab, setActiveTab] = useState<string>('en');
   const [isTranslating, setIsTranslating] = useState(false);
   const [isSavingDb, setIsSavingDb] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -52,6 +53,14 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({
   const [providerBadge, setProviderBadge] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const selectAllTargets = () => {
+    setSelectedTargets(SUPPORTED_LANGUAGES.map(l => l.code).filter(c => c !== sourceLang));
+  };
+
+  const deselectAllTargets = () => {
+    setSelectedTargets([]);
+  };
 
   const toggleTarget = (code: string) => {
     setSelectedTargets(prev => 
@@ -237,11 +246,30 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1.5 uppercase">
-                Target Languages (Select one or more)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-gray-300 uppercase">
+                  Target Languages
+                </label>
+                <div className="flex items-center gap-2 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={selectAllTargets}
+                    className="text-amber-400 hover:text-amber-300 underline font-semibold"
+                  >
+                    Select All Remaining
+                  </button>
+                  <span className="text-gray-600">|</span>
+                  <button
+                    type="button"
+                    onClick={deselectAllTargets}
+                    className="text-gray-400 hover:text-gray-300 underline"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
               <div className="flex flex-wrap gap-2">
-                {SUPPORTED_LANGUAGES.map(lang => {
+                {SUPPORTED_LANGUAGES.filter(l => l.code !== sourceLang).map(lang => {
                   const isChecked = selectedTargets.includes(lang.code);
                   return (
                     <button

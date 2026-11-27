@@ -2387,6 +2387,75 @@ export default function EnterpriseSuperAdminDashboard() {
     } catch { }
   };
 
+  const handleOpenSubcategoryTranslation = async () => {
+    if (!subFormTitle.trim()) {
+      alert('Please enter the Subcategory Title in Telugu first before translating.');
+      return;
+    }
+    if (!subFormParentId) {
+      alert('Please select a Parent Category first.');
+      return;
+    }
+
+    let targetId = editingSubId;
+
+    // If new subcategory (not saved in MySQL yet), create master record first so a permanent ID exists for translations
+    if (!targetId) {
+      setLoading(true);
+      try {
+        const payload = {
+          title: subFormTitle.trim(),
+          slug: subFormSlug.trim() || `sub-${Date.now()}`,
+          parentId: Number(subFormParentId),
+          isAudio: false,
+          description: subFormDescription.trim(),
+          lang: selectedLang || 'te',
+          imageUrl: subFormImageUrl.trim(),
+          deityId: subFormDeityId,
+          deity: subFormDeityId
+        };
+        const res = await fetch(`${API_BASE_URL}/admin/categories`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const created = await res.json();
+        if (created && created.data && created.data.id) {
+          targetId = String(created.data.id);
+          setEditingSubId(targetId);
+          setNotification(`Master subcategory created (#${targetId}). Opening multi-language translator...`);
+          loadSubcategories(1, '', selectedLang);
+        } else {
+          throw new Error('Failed to create master subcategory record.');
+        }
+      } catch (err: any) {
+        alert('Could not save master record: ' + err.message);
+        setLoading(false);
+        return;
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    openTranslationModal('categories', targetId, [
+      { key: 'title', label: 'Subcategory Title', value: subFormTitle },
+      { key: 'description', label: 'Sacred Notes', value: subFormDescription, isHtml: true }
+    ], async (trans, lang) => {
+      if (trans.title) setSubFormTitle(trans.title);
+      if (trans.description) setSubFormDescription(trans.description);
+      if (lang) {
+        setSelectedLang(lang);
+      }
+      if (targetId) {
+        try {
+          const r = await fetch(`${API_BASE_URL}/admin/subcategories/${targetId}?lang=${lang || selectedLang}`);
+          const d = await r.json();
+          if (d && d.data) setViewDetail(d.data);
+        } catch (_) {}
+      }
+    });
+  };
+
   const handleSubcategoryImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -6509,19 +6578,27 @@ export default function EnterpriseSuperAdminDashboard() {
                       </span>
                       <button
                         type="button"
-                        onClick={() => openTranslationModal('categories', editingSubId || undefined, [
-                          { key: 'title', label: 'Subcategory Title', value: subFormTitle },
-                          { key: 'description', label: 'Sacred Notes', value: subFormDescription, isHtml: true }
-                        ], (trans, lang) => {
-                          if (trans.title) setSubFormTitle(trans.title);
-                          if (trans.description) setSubFormDescription(trans.description);
-                          if (lang) setSelectedLang(lang);
-                        })}
-                        className="bg-[#FFB300]/15 hover:bg-[#FFB300]/25 text-[#FFB300] border border-[#FFB300]/40 px-2.5 py-1 rounded text-[11px] font-semibold transition flex items-center gap-1"
+                        onClick={handleOpenSubcategoryTranslation}
+                        className="bg-[#FFB300]/15 hover:bg-[#FFB300]/25 text-[#FFB300] border border-[#FFB300]/40 px-2.5 py-1 rounded text-[11px] font-semibold transition flex items-center gap-1 shadow-sm"
+                        title="Auto-translate into English, Tamil, Kannada, & Hindi"
                       >
                         <Sparkles className="w-3 h-3 text-[#FFB300]" />
                         <span>✨ Translate (v3)</span>
                       </button>
+                    </div>
+
+                    {/* Dual Workflow Guidance Banner */}
+                    <div className="bg-[#061A13] border border-[#16422F] rounded-lg p-2.5 text-[11px] text-gray-300 space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-amber-300 text-xs">
+                        <span>🌐</span>
+                        <span>Multi-Language Workflow</span>
+                      </div>
+                      <p className="text-gray-400">
+                        <strong className="text-amber-300/90">Way 1 (Auto):</strong> Click <span className="text-[#FFB300] font-semibold">&quot;✨ Translate (v3)&quot;</span> to select target languages and automatically translate &amp; save to MySQL.
+                      </p>
+                      <p className="text-gray-400">
+                        <strong className="text-amber-300/90">Way 2 (Manual):</strong> Click any DB Lang button (<span className="text-[#FFB300] font-mono">TE, EN, TA, KN, HI</span>) above to enter or paste custom text and save.
+                      </p>
                     </div>
 
                     {viewDetail?.translations && viewDetail.translations.length > 0 ? (
