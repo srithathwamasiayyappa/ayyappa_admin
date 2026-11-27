@@ -5061,19 +5061,6 @@ export default function EnterpriseSuperAdminDashboard() {
                                 {/* Actions */}
                                 <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex items-center justify-end gap-1.5">
-                                    <label
-                                      title="Upload / Replace Category Image"
-                                      className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-emerald-400 rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition cursor-pointer"
-                                    >
-                                      <Upload className="w-3 h-3 text-emerald-400" />
-                                      <span>Image</span>
-                                      <input
-                                        type="file"
-                                        accept="image/png, image/jpeg, image/webp"
-                                        onChange={(e) => handleQuickServiceArtworkUpload(service.id || service.serviceId, e)}
-                                        className="hidden"
-                                      />
-                                    </label>
                                     <button
                                       type="button"
                                       onClick={(e) => handleOpenViewService(service, e)}
@@ -5214,19 +5201,6 @@ export default function EnterpriseSuperAdminDashboard() {
                             </span>
 
                             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                              <label
-                                title="Upload / Replace Category Image"
-                                className="px-2 py-1 bg-[#141414] hover:bg-[#252525] text-gray-300 hover:text-emerald-400 rounded border border-[#2C2C2C] flex items-center gap-1 text-[11px] font-semibold transition cursor-pointer"
-                              >
-                                <Upload className="w-3 h-3 text-emerald-400" />
-                                <span>Image</span>
-                                <input
-                                  type="file"
-                                  accept="image/png, image/jpeg, image/webp"
-                                  onChange={(e) => handleQuickServiceArtworkUpload(service.id || service.serviceId, e)}
-                                  className="hidden"
-                                />
-                              </label>
                               <button
                                 type="button"
                                 onClick={(e) => {
